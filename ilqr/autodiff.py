@@ -13,125 +13,80 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>
 """Autodifferentiation helper methods."""
-
-import theano
-import theano.tensor as T
-
-
-def jacobian_scalar(expr, wrt):
-    """Computes the Jacobian of a scalar expression with respect to varaibles.
-
-    Args:
-        expr: Scalar Theano tensor expression.
-        wrt: List of Theano variables.
-
-    Returns:
-        Theano tensor.
-    """
-    J = T.grad(expr, wrt, disconnected_inputs="ignore")
-    return J
+import torch
+from torch.autograd.functional import jacobian
+from torch.autograd.functional import hessian
 
 
-def jacobian_vector(expr, wrt, size):
-    """Computes the Jacobian of a vector expression with respect to varaibles.
+def jacobian_scalar(func, inputs):
+    """Computes the Jacobian of a scalar function with respect to inputs.
 
     Args:
-        expr: Vector Theano tensor expression.
-        wrt: List of Theano variables.
-        size: Vector size.
+        func: Python function that takes torch tensors as input and returns a torch scalar.
+            NOTE: All computations in function must be tracked.
+        input: tuple of torch tensor(s), each of shape (input[i].dim).
 
     Returns:
-        Theano tensor.
+        tuple of torch tensor(s), each of shape (input[i].dim).
     """
-    return _tensor_map(lambda f: jacobian_scalar(f, wrt), expr, size)
+    return jacobian(func, input)
 
 
-def batch_jacobian(f, wrt, size=None, *args, **kwargs):
-    """Computes the jacobian of f(x) w.r.t. x in parallel.
+def jacobian_vector(func, inputs):
+    """Computes the Jacobian of a vector function with respect to inputs.
 
     Args:
-        f: Symbolic function.
-        x: Variables to differentiate with respect to.
-        size: Expected vector size of f(x).
-        *args: Additional positional arguments to pass to `f()`.
-        **kwargs: Additional key-word arguments to pass to `f()`.
+        func: Python function that takes torch tensors as input and returns a torch vector.
+            NOTE: All computations in function must be tracked (use torch.stack to concatenate).
+        input: tuple of torch tensor(s), each of shape (input[i].dim).
 
     Returns:
-        Theano tensor.
+        tuple of torch tensor(s), each of shape (output.dim, input[i].dim).
     """
-    if isinstance(wrt, T.TensorVariable):
-        if size is None:
-            y = f(wrt, *args, **kwargs).shape[-1]
-        x_rep = T.tile(wrt, (size, 1))
-        y_rep = f(x_rep, *args, **kwargs)
-    else:
-        if size is None:
-            size = f(*wrt, *args, **kwargs).shape[-1]
-        x_rep = [T.tile(x, (size, 1)) for x in wrt]
-        y_rep = f(*x_rep, *args, **kwargs)
-
-    J = T.grad(
-        cost=None,
-        wrt=x_rep,
-        known_grads={y_rep: T.identity_like(y_rep)},
-        disconnected_inputs="ignore",
-    )
-    return J
+    return jacobian(func, input)
 
 
-def hessian_scalar(expr, wrt):
-    """Computes the Hessian of a scalar expression with respect to varaibles.
+def batch_jacobian(func, inputs):
+    """Computes the jacobian of function w.r.t. a batch of inputs.
 
     Args:
-        expr: Theano tensor expression.
-        wrt: List of Theano variables.
+        func: Python function that takes torch tensors as input and returns a torch tensor.
+            NOTE: All computations in function must be tracked (use torch.stack to concatenate outputs).
+        inputs: tuple of tuples of torch tensors.
 
     Returns:
-        Theano tensor.
+        tuple of tuples of torch tensors.
     """
-    J = T.grad(expr, wrt, disconnected_inputs="ignore")
-    Q = T.stack([T.grad(g, wrt, disconnected_inputs="ignore") for g in J])
-    return Q
+    return tuple(jacobian(func, i) for i in inputs)
 
 
-def hessian_vector(expr, wrt, size):
-    """Computes the Hessian of a vector expression with respect to varaibles.
+def hessian_scalar(func, inputs):
+    """Computes the Hessian of a scalar function with respect to inputs.
 
     Args:
-        expr: Vector Theano tensor expression.
-        wrt: List of Theano variables.
-        size: Vector size.
+        func: Python function that takes torch tensors as input and returns a torch scalar.
+            NOTE: All computations in function must be tracked.
+        input: tuple of torch tensor(s), each of shape (input[i].dim).
 
     Returns:
-        Theano tensor.
+        tuple of tuples of torch tensor(s), where Hessian[i][j] is a tensor of shape(input[i].dim, input[j].dim)
+            containing the hessian of the i-th and j-th input
     """
-    return _tensor_map(lambda x: hessian_scalar(x, wrt), expr, size)
+    return hessian(func, inputs)
 
 
-def _tensor_map(f, expr, size):
-    """Maps a function onto of a vector expression.
+def hessian_vector(func, inputs, size):
+    """Computes the Hessian of a vector function with respect to inputs.
 
     Args:
-        f: Function to apply.
-        expr: Theano tensor expression.
-        wrt: List of Theano variables.
-        size: Vector size.
+        func: Python function that takes torch tensors as input and returns a torch vector.
+            NOTE: All computations in function must be tracked.
+        input: tuple of torch tensor(s), each of shape (input[i].dim).
+        size: number of dimensions of output of function
 
     Returns:
-        Theano tensor.
+        tuple of tuples of torch tensor(s), where each tensor is of shape (output.dim, input[i], input[j].dim).
     """
-    return T.stack([f(expr[i]) for i in range(size)])
-
-
-def as_function(expr, inputs, **kwargs):
-    """Converts and optimizes a Theano expression into a function.
-
-    Args:
-        expr: Theano tensor expression.
-        inputs: List of Theano variables to use as inputs.
-        **kwargs: Additional key-word arguments to pass to `theano.function()`.
-
-    Returns:
-        A function.
-    """
-    return theano.function(inputs, expr, on_unused_input="ignore", **kwargs)
+    hessians = tuple(hessian(lambda *x : func(*x)[i], inputs) for i in range(size))
+    hessians = tuple(tuple(torch.stack(tuple(hessians[k][i][j] for k in range(len(hessians)))) for j in range(len(inputs))) for i in range(len(inputs)))
+    return hessians
