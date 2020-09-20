@@ -16,6 +16,7 @@
 import torch
 from torch.autograd.functional import jacobian
 from torch.autograd.functional import hessian
+from torch import autograd
 
 
 def jacobian_scalar(func, inputs):
@@ -29,6 +30,9 @@ def jacobian_scalar(func, inputs):
     """
     return jacobian(func, inputs)
 
+def jacobian_scalar_test(func, inputs):
+    outputs = func(*inputs)
+    return autograd.grad(outputs, inputs)
 
 def jacobian_vector(func, inputs):
     """Computes the Jacobian of a vector function with respect to inputs.
@@ -41,6 +45,11 @@ def jacobian_vector(func, inputs):
     """
     return jacobian(func, inputs)
 
+def jacobian_vector_test(func, inputs):
+    inputs = tuple(i.requires_grad_() for i in inputs)
+    outputs = func(*inputs)
+    grads = torch.stack(tuple(torch.cat(autograd.grad(o, inputs, allow_unused = True, create_graph = True, retain_graph = True)) for o in outputs))
+    return grads
 
 def batch_jacobian(func, inputs):
     """Computes the jacobian of function w.r.t. a batch of inputs.

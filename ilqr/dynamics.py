@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from scipy.optimize import approx_fprime
 from .autodiff import (hessian_vector,
-                       jacobian_vector)
+                       jacobian_vector, jacobian_vector_test)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -142,6 +142,13 @@ class Dynamics():
         """
         raise NotImplementedError
 
+    def f_derivs(self, x, u, i):
+        """
+        Returns (f_x, f_u) if not has hessians, else (f_x, f_u, f_xx, f_ux, f_uu)
+        """
+
+        raise NotImplementedError
+
 
 class AutoDiffDynamics(Dynamics):
 
@@ -203,6 +210,18 @@ class AutoDiffDynamics(Dynamics):
         u = torch.from_numpy(u)
         return self._f(x, u, i).numpy()
 
+    def f_derivs(self, x, u, i):
+        """
+        Returns (f_x, f_u) if not has hessians, else (f_x, f_u, f_xx, f_ux, f_uu)
+        """
+        x = torch.from_numpy(x)
+        u = torch.from_numpy(u)
+        first_grads =  jacobian_vector_test(lambda x, u: self._f(x, u, i), (x, u)).detach().numpy()
+        if self._has_hessians:
+            raise NotImplementedError
+        else:
+            return (first_grads[:, :self.state_size], first_grads[:, self.state_size:])
+
     def f_x(self, x, u, i):
         """Partial derivative of dynamics model with respect to x.
 
@@ -216,7 +235,7 @@ class AutoDiffDynamics(Dynamics):
         """
         x = torch.from_numpy(x)
         u = torch.from_numpy(u)
-        return jacobian_vector(lambda x, u: self._f(x, u, i), (x, u))[0].numpy()
+        return jacobian_vector_test(lambda x, u: self._f(x, u, i), (x, u))[:, :self.state_size].detach().numpy()
 
     def f_u(self, x, u, i):
         """Partial derivative of dynamics model with respect to u.
@@ -231,7 +250,7 @@ class AutoDiffDynamics(Dynamics):
         """
         x = torch.from_numpy(x)
         u = torch.from_numpy(u)
-        return jacobian_vector(lambda x, u: self._f(x, u, i), (x, u))[1].numpy()
+        return jacobian_vector_test(lambda x, u: self._f(x, u, i), (x, u))[:, self.state_size:].detach().numpy()
 
     def f_xx(self, x, u, i):
         """Second partial derivative of dynamics model with respect to x.
@@ -334,6 +353,16 @@ class FiniteDiffDynamics(Dynamics):
     def has_hessians(self):
         """Whether the second order derivatives are available."""
         return True
+
+    def f_derivs(self, x, u, i):
+        """
+        Returns (f_x, f_u) if not has hessians, else (f_x, f_u, f_xx, f_ux, f_uu)
+        """
+
+        if self._has_hessians:
+            return (self.f_x(x,u,i), self.f_u(x,u,i), self.f_xx(x,u,i), self.f_ux(x,u,i), self.f_uu(x,u,i))
+        else:
+            return (self.f_x(x,u,i), self.f_u(x,u,i))
 
     def f(self, x, u, i):
         """Dynamics model.
