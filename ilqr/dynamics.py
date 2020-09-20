@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from scipy.optimize import approx_fprime
 from .autodiff import (hessian_vector,
-                       jacobian_vector, jacobian_vector_test)
+                       jacobian_vector, jacobian_vector_once)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -216,7 +216,7 @@ class AutoDiffDynamics(Dynamics):
         """
         x = torch.from_numpy(x)
         u = torch.from_numpy(u)
-        first_grads =  jacobian_vector_test(lambda x, u: self._f(x, u, i), (x, u)).detach().numpy()
+        first_grads =  jacobian_vector_once(lambda x, u: self._f(x, u, i), (x, u)).detach().numpy()
         if self._has_hessians:
             raise NotImplementedError
         else:
@@ -235,7 +235,7 @@ class AutoDiffDynamics(Dynamics):
         """
         x = torch.from_numpy(x)
         u = torch.from_numpy(u)
-        return jacobian_vector_test(lambda x, u: self._f(x, u, i), (x, u))[:, :self.state_size].detach().numpy()
+        return jacobian_vector_once(lambda x, u: self._f(x, u, i), (x, u))[:, :self.state_size].detach().numpy()
 
     def f_u(self, x, u, i):
         """Partial derivative of dynamics model with respect to u.
@@ -250,7 +250,7 @@ class AutoDiffDynamics(Dynamics):
         """
         x = torch.from_numpy(x)
         u = torch.from_numpy(u)
-        return jacobian_vector_test(lambda x, u: self._f(x, u, i), (x, u))[:, self.state_size:].detach().numpy()
+        return jacobian_vector_once(lambda x, u: self._f(x, u, i), (x, u))[:, self.state_size:].detach().numpy()
 
     def f_xx(self, x, u, i):
         """Second partial derivative of dynamics model with respect to x.

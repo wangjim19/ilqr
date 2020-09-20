@@ -285,27 +285,24 @@ class iLQR(BaseController):
             u = us[i]
 
             xs[i + 1] = self.dynamics.f(x, u, i)
-            #F_x[i] = self.dynamics.f_x(x, u, i)
-            #F_u[i] = self.dynamics.f_u(x, u, i)
+
             if self._use_hessians:
                 print("using hessians")
                 F_x[i], F_u[i], F_xx[i], F_ux[i], F_uu[i] = self.dynamics.f_derivs(x, u, i)
             else:
                 F_x[i], F_u[i] = self.dynamics.f_derivs(x, u, i)
 
-
             L[i] = self.cost.l(x, u, i, terminal=False)
-            L_x[i] = self.cost.l_x(x, u, i, terminal=False)
-            L_u[i] = self.cost.l_u(x, u, i, terminal=False)
-            L_xx[i] = self.cost.l_xx(x, u, i, terminal=False)
-            L_ux[i] = self.cost.l_ux(x, u, i, terminal=False)
-            L_uu[i] = self.cost.l_uu(x, u, i, terminal=False)
+
+            L_x[i], L_u[i], L_xx[i], L_ux[i], L_uu[i] = self.cost.l_derivs(x, u, i, terminal=False)
+
 
 
         x = xs[-1]
         L[-1] = self.cost.l(x, None, N, terminal=True)
-        L_x[-1] = self.cost.l_x(x, None, N, terminal=True)
-        L_xx[-1] = self.cost.l_xx(x, None, N, terminal=True)
+
+        L_x[-1], L_xx[-1] = self.cost.l_derivs(x, None, N, terminal=True)
+        
 
         return xs, F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu, F_xx, F_ux, F_uu
 

@@ -45,7 +45,7 @@ def jacobian_vector(func, inputs):
     """
     return jacobian(func, inputs)
 
-def jacobian_vector_test(func, inputs):
+def jacobian_vector_once(func, inputs):
     inputs = tuple(i.requires_grad_() for i in inputs)
     outputs = func(*inputs)
     grads = torch.stack(tuple(torch.cat(autograd.grad(o, inputs, allow_unused = True, create_graph = True, retain_graph = True)) for o in outputs))
@@ -89,6 +89,16 @@ def hessian_vector(func, inputs, size):
     hessians = tuple(hessian(lambda *x : func(*x)[i], inputs) for i in range(size))
     hessians = tuple(tuple(torch.stack(tuple(hessians[k][i][j] for k in range(len(hessians)))) for j in range(len(inputs))) for i in range(len(inputs)))
     return hessians
+
+def all_derivs_scalar(func, inputs):
+    """
+    Returns first and second derivatives of scalar func wrt inputs.
+    """
+    inputs = tuple(i.requires_grad_() for i in inputs)
+    output = func(*inputs)
+    first_derivs = torch.cat(autograd.grad(output, inputs, allow_unused = True, create_graph = True, retain_graph = True))
+    second_derivs = torch.stack(tuple(torch.cat(autograd.grad(o, inputs, allow_unused = True, create_graph = True)) for o in first_derivs))
+    return (first_derivs, second_derivs)
 
 def as_function(expr, inputs, **kwargs):
     """Converts and optimizes a Theano expression into a function.

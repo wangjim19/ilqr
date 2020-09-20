@@ -19,7 +19,7 @@ import abc
 import numpy as np
 import torch
 from scipy.optimize import approx_fprime
-from .autodiff import as_function, hessian_scalar, jacobian_scalar
+from .autodiff import as_function, hessian_scalar, jacobian_scalar, all_derivs_scalar
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -121,6 +121,13 @@ class Cost():
         """
         raise NotImplementedError
 
+    def l_derivs(self, x, u, i, terminal = False):
+        """
+        Returns (l_x, l_u, l_xx, l_ux, l_uu) if not terminal, else (l_x, l_xx)
+        """
+
+        raise NotImplementedError
+
 
 class AutoDiffCost(Cost):
 
@@ -173,6 +180,28 @@ class AutoDiffCost(Cost):
             return self._l_terminal(x, i).numpy()
         u = torch.from_numpy(u)
         return self._l(x, u, i).numpy()
+
+    def l_derivs(self, x, u, i, terminal = False):
+        """
+        Returns (l_x, l_u, l_xx, l_ux, l_uu) if not terminal, else (l_x, l_xx)
+        """
+        x = torch.from_numpy(x)
+        if terminal:
+            derivs = all_derivs_scalar(lambda x: self._l_terminal(x, i), (x,))
+            return (derivs[0].detach().numpy(), derivs[1].detach().numpy())
+
+        u = torch.from_numpy(u)
+        derivs = all_derivs_scalar(lambda x, u: self._l(x, u, i), (x, u))
+
+        first_derivs = derivs[0].detach().numpy()
+        second_derivs = derivs[1].detach().numpy()
+
+        return (first_derivs[:self._state_size],
+            first_derivs[self._state_size:],
+            second_derivs[:self._state_size, :self._state_size],
+            second_derivs[self._state_size:, :self._state_size],
+            second_derivs[self._state_size:, self._state_size:])
+
 
     def l_x(self, x, u, i, terminal=False):
         """Partial derivative of cost function with respect to x.
@@ -335,6 +364,15 @@ class FiniteDiffCost(Cost):
             return self._l_terminal(x, i)
 
         return self._l(x, u, i)
+
+    def l_derivs(self, x, u, i, terminal = False):
+        """
+        Returns (l_x, l_u, l_xx, l_ux, l_uu) if not terminal, else (l_x, l_xx)
+        """
+
+        if terminal:
+            return (self.l_x(x, u, i, terminal), self.l_xx(x, u, i, terminal))
+        return (self.l_x(x, u, i, terminal), self.l_u(x, u, i, terminal), self.l_xx(x, u, i, terminal), self.l_ux(x, u, i, terminal), self.l_uu(x, u, i, terminal))
 
     def l_x(self, x, u, i, terminal=False):
         """Partial derivative of cost function with respect to x.
@@ -506,6 +544,15 @@ class QRCost(Cost):
 
         u_diff = u - self.u_goal
         return squared_x_cost + u_diff.T.dot(R).dot(u_diff)
+
+    def l_derivs(self, x, u, i, terminal = False):
+        """
+        Returns (l_x, l_u, l_xx, l_ux, l_uu) if not terminal, else (l_x, l_xx)
+        """
+
+        if terminal:
+            return (self.l_x(x, u, i, terminal), self.l_xx(x, u, i, terminal))
+        return (self.l_x(x, u, i, terminal), self.l_u(x, u, i, terminal), self.l_xx(x, u, i, terminal), self.l_ux(x, u, i, terminal), self.l_uu(x, u, i, terminal))
 
     def l_x(self, x, u, i, terminal=False):
         """Partial derivative of cost function with respect to x.
