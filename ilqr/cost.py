@@ -168,10 +168,10 @@ class AutoDiffCost(Cost):
             Instantaneous cost (scalar).
         """
         x = torch.from_numpy(x)
-        u = torch.from_numpy(u)
-        if terminal:
-            return self._l_terminal(x, u, i).numpy()
 
+        if terminal:
+            return self._l_terminal(x, i).numpy()
+        u = torch.from_numpy(u)
         return self._l(x, u, i).numpy()
 
     def l_x(self, x, u, i, terminal=False):
@@ -187,10 +187,10 @@ class AutoDiffCost(Cost):
             dl/dx [state_size].
         """
         x = torch.from_numpy(x)
-        u = torch.from_numpy(u)
-        if terminal:
-            return jacobian_scalar(lambda x, u: self._l_terminal(x, u, i), (x, u))[0].numpy()
 
+        if terminal:
+            return jacobian_scalar(lambda x: self._l_terminal(x, i), (x,))[0].numpy()
+        u = torch.from_numpy(u)
         return jacobian_scalar(lambda x, u: self._l(x, u, i), (x, u))[0].numpy()
 
     def l_u(self, x, u, i, terminal=False):
@@ -226,10 +226,10 @@ class AutoDiffCost(Cost):
             d^2l/dx^2 [state_size, state_size].
         """
         x = torch.from_numpy(x)
-        u = torch.from_numpy(u)
-        if terminal:
-            return hessian_scalar(lambda x, u: self._l_terminal(x, u, i), (x, u))[0][0].numpy()
 
+        if terminal:
+            return hessian_scalar(lambda x: self._l_terminal(x, i), (x,))[0][0].numpy()
+        u = torch.from_numpy(u)
         return hessian_scalar(lambda x, u: self._l(x, u, i), (x, u))[0][0].numpy()
 
     def l_ux(self, x, u, i, terminal=False):
