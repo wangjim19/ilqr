@@ -99,21 +99,20 @@ class CartpoleDynamics(AutoDiffDynamics):
     def augment_state(cls, state):
         """Augments angular state into a non-angular state by replacing theta
         with sin(theta) and cos(theta).
-
         In this case, it converts:
-
             [x, x', theta, theta'] -> [x, x', sin(theta), cos(theta), theta']
-
         Args:
             state: State vector [reducted_state_size].
-
         Returns:
             Augmented state size [state_size].
         """
-        x = state[0]
-        x_dot = state[1]
-        theta = state[2]
-        theta_dot = state[3]
+        if state.ndim == 1:
+            x, x_dot, theta, theta_dot = state
+        else:
+            x = state[..., 0].reshape(-1, 1)
+            x_dot = state[..., 1].reshape(-1, 1)
+            theta = state[..., 2].reshape(-1, 1)
+            theta_dot = state[..., 3].reshape(-1, 1)
 
         return np.hstack([x, x_dot, np.sin(theta), np.cos(theta), theta_dot])
 
@@ -121,22 +120,21 @@ class CartpoleDynamics(AutoDiffDynamics):
     def reduce_state(cls, state):
         """Reduces a non-angular state into an angular state by replacing
         sin(theta) and cos(theta) with theta.
-
         In this case, it converts:
-
             [x, x', sin(theta), cos(theta), theta'] -> [x, x', theta, theta']
-
         Args:
             state: Augmented state vector [state_size].
-
         Returns:
             Reduced state size [reducted_state_size].
         """
-        x = state[0]
-        x_dot = state[1]
-        sin_theta = state[2]
-        cos_theta = state[3]
-        theta_dot = state[4]
+        if state.ndim == 1:
+            x, x_dot, sin_theta, cos_theta, theta_dot = state
+        else:
+            x = state[..., 0].reshape(-1, 1)
+            x_dot = state[..., 1].reshape(-1, 1)
+            sin_theta = state[..., 2].reshape(-1, 1)
+            cos_theta = state[..., 3].reshape(-1, 1)
+            theta_dot = state[..., 4].reshape(-1, 1)
 
         theta = np.arctan2(sin_theta, cos_theta)
         return np.hstack([x, x_dot, theta, theta_dot])

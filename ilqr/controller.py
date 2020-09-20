@@ -304,7 +304,7 @@ class iLQR(BaseController):
         L[-1] = self.cost.l(x, None, N, terminal=True)
         L_x[-1] = self.cost.l_x(x, None, N, terminal=True)
         L_xx[-1] = self.cost.l_xx(x, None, N, terminal=True)
-
+        
         return xs, F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu, F_xx, F_ux, F_uu
 
     def _backward_pass(self,
