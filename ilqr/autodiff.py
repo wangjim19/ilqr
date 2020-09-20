@@ -14,8 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>
 """Autodifferentiation helper methods."""
 import torch
-from torch.autograd.functional import jacobian
-from torch.autograd.functional import hessian
+from torch.autograd.functional import (jacobian, hessian)
 
 
 def jacobian_scalar(func, inputs):
@@ -45,19 +44,6 @@ def jacobian_vector(func, inputs):
     """
     return jacobian(func, input)
 
-
-def batch_jacobian(func, inputs):
-    """Computes the jacobian of function w.r.t. a batch of inputs.
-
-    Args:
-        func: Python function that takes torch tensors as input and returns a torch tensor.
-            NOTE: All computations in function must be tracked (use torch.stack to concatenate outputs).
-        inputs: tuple of tuples of torch tensors.
-
-    Returns:
-        tuple of tuples of torch tensors.
-    """
-    return tuple(jacobian(func, i) for i in inputs)
 
 
 def hessian_scalar(func, inputs):
