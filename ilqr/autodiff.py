@@ -28,7 +28,7 @@ def jacobian_scalar(func, inputs):
     Returns:
         tuple of torch tensor(s), each of shape (input[i].dim).
     """
-    return jacobian(func, input)
+    return jacobian(func, inputs)
 
 
 def jacobian_vector(func, inputs):
@@ -42,7 +42,7 @@ def jacobian_vector(func, inputs):
     Returns:
         tuple of torch tensor(s), each of shape (output.dim, input[i].dim).
     """
-    return jacobian(func, input)
+    return jacobian(func, inputs)
 
 
 

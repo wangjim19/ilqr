@@ -16,10 +16,10 @@
 
 import numpy as np
 import theano.tensor as T
-from ..dynamics import BatchAutoDiffDynamics, tensor_constrain
+from ..dynamics import AutoDiffDynamics, tensor_constrain
 
 
-class InvertedPendulumDynamics(BatchAutoDiffDynamics):
+class InvertedPendulumDynamics(AutoDiffDynamics):
 
     """Inverted pendulum auto-differentiated dynamics model."""
 
@@ -54,7 +54,7 @@ class InvertedPendulumDynamics(BatchAutoDiffDynamics):
         self.min_bounds = min_bounds
         self.max_bounds = max_bounds
 
-        def f(x, u, i):
+        def f(x, u):
             # Constrain action space.
             if constrain:
                 u = tensor_constrain(u, min_bounds, max_bounds)
@@ -65,7 +65,7 @@ class InvertedPendulumDynamics(BatchAutoDiffDynamics):
             torque = u[..., 0]
 
             # Deal with angle wrap-around.
-            theta = T.arctan2(sin_theta, cos_theta)
+            theta = torch.atan2(sin_theta, cos_theta)
 
             # Define acceleration.
             theta_dot_dot = -3.0 * g / (2 * l) * T.sin(theta + np.pi)
@@ -73,9 +73,9 @@ class InvertedPendulumDynamics(BatchAutoDiffDynamics):
 
             next_theta = theta + theta_dot * dt
 
-            return T.stack([
-                T.sin(next_theta),
-                T.cos(next_theta),
+            return torch.stack([
+                torch.sin(next_theta),
+                torch.cos(next_theta),
                 theta_dot + theta_dot_dot * dt,
             ]).T
 
@@ -102,10 +102,10 @@ class InvertedPendulumDynamics(BatchAutoDiffDynamics):
         if state.ndim == 1:
             theta, theta_dot = state
         else:
-            theta = state[..., 0].reshape(-1, 1)
-            theta_dot = state[..., 1].reshape(-1, 1)
+            theta = state[0]
+            theta_dot = state[1]
 
-        return np.hstack([np.sin(theta), np.cos(theta), theta_dot])
+        return torch.stack([torch.sin(theta), torch.cos(theta), theta_dot])
 
     @classmethod
     def reduce_state(cls, state):
@@ -125,9 +125,9 @@ class InvertedPendulumDynamics(BatchAutoDiffDynamics):
         if state.ndim == 1:
             sin_theta, cos_theta, theta_dot = state
         else:
-            sin_theta = state[..., 0].reshape(-1, 1)
-            cos_theta = state[..., 1].reshape(-1, 1)
-            theta_dot = state[..., 2].reshape(-1, 1)
+            sin_theta = state[0]
+            cos_theta = state[1]
+            theta_dot = state[2]
 
-        theta = np.arctan2(sin_theta, cos_theta)
-        return np.hstack([theta, theta_dot])
+        theta = torch.atan2(sin_theta, cos_theta)
+        return torch.stack([theta, theta_dot])

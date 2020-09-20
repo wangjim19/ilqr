@@ -45,13 +45,12 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f(self, x, u, i):
+    def f(self, x, u):
         """Dynamics model.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
-            i: Current time step.
 
         Returns:
             Next state [state_size].
@@ -59,13 +58,12 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_x(self, x, u, i):
+    def f_x(self, x, u):
         """Partial derivative of dynamics model with respect to x.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
-            i: Current time step.
 
         Returns:
             df/dx [state_size, state_size].
@@ -73,13 +71,12 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_u(self, x, u, i):
+    def f_u(self, x, u):
         """Partial derivative of dynamics model with respect to u.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
-            i: Current time step.
 
         Returns:
             df/du [state_size, action_size].
@@ -87,7 +84,7 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_xx(self, x, u, i):
+    def f_xx(self, x, u):
         """Second partial derivative of dynamics model with respect to x.
 
         Note:
@@ -97,7 +94,6 @@ class Dynamics():
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
-            i: Current time step.
 
         Returns:
             d^2f/dx^2 [state_size, state_size, state_size].
@@ -105,7 +101,7 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_ux(self, x, u, i):
+    def f_ux(self, x, u):
         """Second partial derivative of dynamics model with respect to u and x.
 
         Note:
@@ -115,7 +111,6 @@ class Dynamics():
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
-            i: Current time step.
 
         Returns:
             d^2f/dudx [state_size, action_size, state_size].
@@ -123,7 +118,7 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_uu(self, x, u, i):
+    def f_uu(self, x, u):
         """Second partial derivative of dynamics model with respect to u.
 
         Note:
@@ -133,7 +128,6 @@ class Dynamics():
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
-            i: Current time step.
 
         Returns:
             d^2f/du^2 [state_size, action_size, action_size].
@@ -247,7 +241,7 @@ class AutoDiffDynamics(Dynamics):
 
         return hessian_vector(self._f, (x, u))[1][0]
 
-    def f_uu(self, x, u, i):
+    def f_uu(self, x, u):
         """Second partial derivative of dynamics model with respect to u.
 
         Args:
