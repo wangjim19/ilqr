@@ -155,7 +155,7 @@ class AutoDiffDynamics(Dynamics):
                 NOTE: all computations must be tracked
             state_size: number of state dimensions
             action_size: number of action dimensions
-            i: Theano tensor time step variable.
+            i: torch tensor time step variable.
             hessians: Evaluate the dynamic model's second order derivatives.
                 Default: only use first order derivatives. (i.e. iLQR instead
                 of DDP).
