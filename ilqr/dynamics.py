@@ -16,9 +16,11 @@
 
 import six
 import abc
+import numpy as np
 import torch
 from scipy.optimize import approx_fprime
-from .autodiff import (hessian_vector, jacobian_vector)
+from .autodiff import (hessian_vector,
+                       jacobian_vector)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -45,12 +47,13 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f(self, x, u):
+    def f(self, x, u, i):
         """Dynamics model.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             Next state [state_size].
@@ -58,12 +61,13 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_x(self, x, u):
+    def f_x(self, x, u, i):
         """Partial derivative of dynamics model with respect to x.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             df/dx [state_size, state_size].
@@ -71,12 +75,13 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_u(self, x, u):
+    def f_u(self, x, u, i):
         """Partial derivative of dynamics model with respect to u.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             df/du [state_size, action_size].
@@ -84,7 +89,7 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_xx(self, x, u):
+    def f_xx(self, x, u, i):
         """Second partial derivative of dynamics model with respect to x.
 
         Note:
@@ -94,6 +99,7 @@ class Dynamics():
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             d^2f/dx^2 [state_size, state_size, state_size].
@@ -101,7 +107,7 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_ux(self, x, u):
+    def f_ux(self, x, u, i):
         """Second partial derivative of dynamics model with respect to u and x.
 
         Note:
@@ -111,6 +117,7 @@ class Dynamics():
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             d^2f/dudx [state_size, action_size, state_size].
@@ -118,7 +125,7 @@ class Dynamics():
         raise NotImplementedError
 
     @abc.abstractmethod
-    def f_uu(self, x, u):
+    def f_uu(self, x, u, i):
         """Second partial derivative of dynamics model with respect to u.
 
         Note:
@@ -128,6 +135,7 @@ class Dynamics():
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             d^2f/du^2 [state_size, action_size, action_size].
@@ -137,26 +145,26 @@ class Dynamics():
 
 class AutoDiffDynamics(Dynamics):
 
-    """Auto-differentiated Dynamics Model.
+    """Auto-differentiated Dynamics Model."""
 
-    Uses torch tensors."""
-
-    def __init__(self, f, state_size, action_size, hessians=False):
+    def __init__(self, f, state_size, action_size, i=None, hessians=False):
         """Constructs an AutoDiffDynamics model.
 
         Args:
-            f: Python function of the form f(x, u) that takes state and input (torch vectors) and produces next state (torch vector).
-                NOTE: all computations in function must be tracked
-            state_size: number of state dimensions.
-            action_size: number of action dimensions.
+            f: Python vector function (x, u, i) -> (x) where x and u are pytorch tensors.
+                NOTE: all computations must be tracked
+            state_size: number of state dimensions
+            action_size: number of action dimensions
+            i: Theano tensor time step variable.
             hessians: Evaluate the dynamic model's second order derivatives.
                 Default: only use first order derivatives. (i.e. iLQR instead
                 of DDP).
         """
-        self._f = f
         self._state_size = state_size
         self._action_size = action_size
         self._has_hessians = hessians
+        self._i = i
+        self._f = f
 
         super(AutoDiffDynamics, self).__init__()
 
@@ -175,99 +183,120 @@ class AutoDiffDynamics(Dynamics):
         """Whether the second order derivatives are available."""
         return self._has_hessians
 
-    def f(self, x, u):
+    @property
+    def i(self):
+        """The time step variable."""
+        return self._i
+
+    def f(self, x, u, i):
         """Dynamics model.
 
         Args:
-            x: Current state. torch tensor of shape(state_size)
-            u: Current control. torch tensor of shape(action_size)
+            x: Current state [state_size].
+            u: Current control [action_size].
+            i: Current time step.
 
         Returns:
-            Next state. torch tensor of shape(state_size)
+            Next state [state_size].
         """
-        return self._f(x, u)
+        x = torch.from_numpy(x)
+        u = torch.from_numpy(u)
+        return self._f(x, u, i).numpy()
 
-    def f_x(self, x, u):
+    def f_x(self, x, u, i):
         """Partial derivative of dynamics model with respect to x.
 
         Args:
-            x: Current state. torch tensor of shape(state_size)
-            u: Current control. torch tensor of shape(action_size)
+            x: Current state [state_size].
+            u: Current control [action_size].
+            i: Current time step.
 
         Returns:
-            df/dx. torch tensor of shape(state_size, state_size)
+            df/dx [state_size, state_size].
         """
-        return jacobian_vector(self._f, (x, u))[0]
+        x = torch.from_numpy(x)
+        u = torch.from_numpy(u)
+        return jacobian_vector(lambda x, u: self._f(x, u, i), (x, u))[0].numpy()
 
-    def f_u(self, x, u):
+    def f_u(self, x, u, i):
         """Partial derivative of dynamics model with respect to u.
 
         Args:
-            x: Current state. torch tensor of shape(state_size)
-            u: Current control. torch tensor of shape(action_size)
+            x: Current state [state_size].
+            u: Current control [action_size].
+            i: Current time step.
 
         Returns:
-            df/du. torch tensor of shape(state_size, action_size)
+            df/du [state_size, action_size].
         """
-        return jacobian_vector(self._f, (x, u))[1]
+        x = torch.from_numpy(x)
+        u = torch.from_numpy(u)
+        return jacobian_vector(lambda x, u: self._f(x, u, i), (x, u))[1].numpy()
 
-    def f_xx(self, x, u):
+    def f_xx(self, x, u, i):
         """Second partial derivative of dynamics model with respect to x.
 
         Args:
-            x: Current state. torch tensor of shape(state_size)
-            u: Current control. torch tensor of shape(action_size)
+            x: Current state [state_size].
+            u: Current control [action_size].
+            i: Current time step.
 
         Returns:
-            d^2f/dx^2. torch tensor of shape (state_size, state_size, state_size)
+            d^2f/dx^2 [state_size, state_size, state_size].
         """
         if not self._has_hessians:
             raise NotImplementedError
 
-        return hessian_vector(self._f, (x, u))[0][0]
+        x = torch.from_numpy(x)
+        u = torch.from_numpy(u)
+        return hessian_vector(lambda x, u: self._f(x, u, i), (x, u), self._state_size)[0][0].numpy()
 
-    def f_ux(self, x, u):
+    def f_ux(self, x, u, i):
         """Second partial derivative of dynamics model with respect to u and x.
 
         Args:
-            x: Current state. torch tensor of shape(state_size)
-            u: Current control. torch tensor of shape(action_size)
+            x: Current state [state_size].
+            u: Current control [action_size].
+            i: Current time step.
 
         Returns:
-            d^2f/dudx. torch tensor of shape(state_size, action_size, state_size)
+            d^2f/dudx [state_size, action_size, state_size].
         """
         if not self._has_hessians:
             raise NotImplementedError
 
-        return hessian_vector(self._f, (x, u))[1][0]
+        x = torch.from_numpy(x)
+        u = torch.from_numpy(u)
+        return hessian_vector(lambda x, u: self._f(x, u, i), (x, u), self._state_size)[1][0].numpy()
 
-    def f_uu(self, x, u):
+    def f_uu(self, x, u, i):
         """Second partial derivative of dynamics model with respect to u.
 
         Args:
-            x: Current state. torch tensor of shape(state_size)
-            u: Current control. torch tensor of shape(action_size)
+            x: Current state [state_size].
+            u: Current control [action_size].
+            i: Current time step.
 
         Returns:
-            d^2f/du^2. torch tensor of shape(state_size, action_size, action_size)
+            d^2f/du^2 [state_size, action_size, action_size].
         """
         if not self._has_hessians:
             raise NotImplementedError
 
-        return hessian_vector(self._f, (x, u))[1][1]
+        x = torch.from_numpy(x)
+        u = torch.from_numpy(u)
+        return hessian_vector(lambda x, u: self._f(x, u, i), (x, u), self._state_size)[1][1].numpy()
 
 
 class FiniteDiffDynamics(Dynamics):
 
-    """Finite difference approximated Dynamics Model.
-
-    Internally uses scipy/numpy to compute finite differences, not pytorch."""
+    """Finite difference approximated Dynamics Model."""
 
     def __init__(self, f, state_size, action_size, x_eps=None, u_eps=None):
         """Constructs an FiniteDiffDynamics model.
 
         Args:
-            f: Function to approximate. Signature: (x, u) -> x. where x, u, x are torch tensors
+            f: Function to approximate. Signature: (x, u, i) -> x.
             state_size: State size.
             action_size: Action size.
             x_eps: Increment to the state to use when estimating the gradient.
@@ -279,7 +308,7 @@ class FiniteDiffDynamics(Dynamics):
             The square root of the provided epsilons are used when computing
             the Hessians instead.
         """
-        self._f = lambda x, u : f(x, u).numpy()
+        self._f = f
         self._state_size = state_size
         self._action_size = action_size
 
@@ -306,56 +335,60 @@ class FiniteDiffDynamics(Dynamics):
         """Whether the second order derivatives are available."""
         return True
 
-    def f(self, x, u):
+    def f(self, x, u, i):
         """Dynamics model.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             Next state [state_size].
         """
-        return torch.from_numpy(self._f(x, u))
+        return self._f(x, u, i)
 
-    def f_x(self, x, u):
+    def f_x(self, x, u, i):
         """Partial derivative of dynamics model with respect to x.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             df/dx [state_size, state_size].
         """
         J = np.vstack([
-            approx_fprime(x, lambda x: self._f(x, u)[m], self._x_eps)
+            approx_fprime(x, lambda x: self._f(x, u, i)[m], self._x_eps)
             for m in range(self._state_size)
         ])
-        return torch.from_numpy(J)
+        return J
 
-    def f_u(self, x, u):
+    def f_u(self, x, u, i):
         """Partial derivative of dynamics model with respect to u.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             df/du [state_size, action_size].
         """
         J = np.vstack([
-            approx_fprime(u, lambda u: self._f(x, u)[m], self._u_eps)
+            approx_fprime(u, lambda u: self._f(x, u, i)[m], self._u_eps)
             for m in range(self._state_size)
         ])
-        return torch.from_numpy(J)
+        return J
 
-    def f_xx(self, x, u):
+    def f_xx(self, x, u, i):
         """Second partial derivative of dynamics model with respect to x.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             d^2f/dx^2 [state_size, state_size, state_size].
@@ -365,20 +398,21 @@ class FiniteDiffDynamics(Dynamics):
         # yapf: disable
         Q = np.array([
             [
-                approx_fprime(x, lambda x: self.f_x(x, u).numpy()[m, n], eps)
+                approx_fprime(x, lambda x: self.f_x(x, u, i)[m, n], eps)
                 for n in range(self._state_size)
             ]
             for m in range(self._state_size)
         ])
         # yapf: enable
-        return torch.from_numpy(Q)
+        return Q
 
-    def f_ux(self, x, u):
+    def f_ux(self, x, u, i):
         """Second partial derivative of dynamics model with respect to u and x.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             d^2f/dudx [state_size, action_size, state_size].
@@ -388,20 +422,21 @@ class FiniteDiffDynamics(Dynamics):
         # yapf: disable
         Q = np.array([
             [
-                approx_fprime(x, lambda x: self.f_u(x, u).numpy()[m, n], eps)
+                approx_fprime(x, lambda x: self.f_u(x, u, i)[m, n], eps)
                 for n in range(self._action_size)
             ]
             for m in range(self._state_size)
         ])
         # yapf: enable
-        return torch.from_numpy(Q)
+        return Q
 
-    def f_uu(self, x, u):
+    def f_uu(self, x, u, i):
         """Second partial derivative of dynamics model with respect to u.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size].
+            i: Current time step.
 
         Returns:
             d^2f/du^2 [state_size, action_size, action_size].
@@ -411,13 +446,13 @@ class FiniteDiffDynamics(Dynamics):
         # yapf: disable
         Q = np.array([
             [
-                approx_fprime(u, lambda u: self.f_u(x, u).numpy()[m, n], eps)
+                approx_fprime(u, lambda u: self.f_u(x, u, i)[m, n], eps)
                 for n in range(self._action_size)
             ]
             for m in range(self._state_size)
         ])
         # yapf: enable
-        return torch.from_numpy(Q)
+        return Q
 
 
 def constrain(u, min_bounds, max_bounds):
@@ -441,7 +476,7 @@ def tensor_constrain(u, min_bounds, max_bounds):
     """Constrains a control vector tensor variable between given bounds through
     a squashing function.
 
-    This is implemented with Pytorch, so as to be auto-differentiable.
+    This is implemented with torch, so as to be auto-differentiable.
 
     Args:
         u: Control vector tensor variable [action_size].

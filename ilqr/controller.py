@@ -17,7 +17,7 @@
 import six
 import abc
 import warnings
-import torch
+import numpy as np
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -74,8 +74,8 @@ class iLQR(BaseController):
         self._delta_0 = 2.0
         self._delta = self._delta_0
 
-        self._k = torch.zeros((N, dynamics.action_size))
-        self._K = torch.zeros((N, dynamics.action_size, dynamics.state_size))
+        self._k = np.zeros((N, dynamics.action_size))
+        self._K = np.zeros((N, dynamics.action_size, dynamics.state_size))
 
         super(iLQR, self).__init__()
 
@@ -109,9 +109,9 @@ class iLQR(BaseController):
         self._delta = self._delta_0
 
         # Backtracking line search candidates 0 < alpha <= 1.
-        alphas = 1.1**(-torch.arange(10)**2)
+        alphas = 1.1**(-np.arange(10)**2)
 
-        us = us_init.clone()
+        us = us_init.copy()
         k = self._k
         K = self._K
 
@@ -131,14 +131,14 @@ class iLQR(BaseController):
                 # Backward pass.
                 k, K = self._backward_pass(F_x, F_u, L_x, L_u, L_xx, L_ux, L_uu,
                                            F_xx, F_ux, F_uu)
+
                 # Backtracking line search.
                 for alpha in alphas:
                     xs_new, us_new = self._control(xs, us, k, K, alpha)
-                    print(xs_new, us_new)
                     J_new = self._trajectory_cost(xs_new, us_new)
-                    print(J_new, J_opt)
+
                     if J_new < J_opt:
-                        if torch.abs((J_opt - J_new) / J_opt) < tol:
+                        if np.abs((J_opt - J_new) / J_opt) < tol:
                             converged = True
 
                         J_opt = J_new
@@ -155,8 +155,7 @@ class iLQR(BaseController):
                         # Accept this.
                         accepted = True
                         break
-
-            except Exception as e:
+            except np.linalg.LinAlgError as e:
                 # Quu was not positive-definite and this diverged.
                 # Try again with a higher regularization term.
                 warnings.warn(str(e))
@@ -198,16 +197,16 @@ class iLQR(BaseController):
                 xs: state path [N+1, state_size].
                 us: control path [N, action_size].
         """
-        xs_new = torch.zeros_like(xs)
-        us_new = torch.zeros_like(us)
-        xs_new[0] = xs[0].clone()
+        xs_new = np.zeros_like(xs)
+        us_new = np.zeros_like(us)
+        xs_new[0] = xs[0].copy()
 
         for i in range(self.N):
             # Eq (12).
-            us_new[i] = us[i] + alpha * k[i] + K[i].matmul(xs_new[i] - xs[i])
+            us_new[i] = us[i] + alpha * k[i] + K[i].dot(xs_new[i] - xs[i])
 
             # Eq (8c).
-            xs_new[i + 1] = self.dynamics.f(xs_new[i], us_new[i])
+            xs_new[i + 1] = self.dynamics.f(xs_new[i], us_new[i], i)
 
         return xs_new, us_new
 
@@ -223,7 +222,7 @@ class iLQR(BaseController):
         """
         J = map(lambda args: self.cost.l(*args), zip(xs[:-1], us,
                                                      range(self.N)))
-        return sum(J) + self.cost.l(xs[-1], None, terminal=True)
+        return sum(J) + self.cost.l(xs[-1], None, self.N, terminal=True)
 
     def _forward_rollout(self, x0, us):
         """Apply the forward dynamics to have a trajectory from the starting
@@ -260,51 +259,51 @@ class iLQR(BaseController):
         action_size = self.dynamics.action_size
         N = us.shape[0]
 
-        xs = torch.empty((N + 1, state_size))
-        F_x = torch.empty((N, state_size, state_size))
-        F_u = torch.empty((N, state_size, action_size))
+        xs = np.empty((N + 1, state_size))
+        F_x = np.empty((N, state_size, state_size))
+        F_u = np.empty((N, state_size, action_size))
 
         if self._use_hessians:
-            F_xx = torch.empty((N, state_size, state_size, state_size))
-            F_ux = torch.empty((N, state_size, action_size, state_size))
-            F_uu = torch.empty((N, state_size, action_size, action_size))
+            F_xx = np.empty((N, state_size, state_size, state_size))
+            F_ux = np.empty((N, state_size, action_size, state_size))
+            F_uu = np.empty((N, state_size, action_size, action_size))
         else:
             F_xx = None
             F_ux = None
             F_uu = None
 
-        L = torch.empty(N + 1)
-        L_x = torch.empty((N + 1, state_size))
-        L_u = torch.empty((N, action_size))
-        L_xx = torch.empty((N + 1, state_size, state_size))
-        L_ux = torch.empty((N, action_size, state_size))
-        L_uu = torch.empty((N, action_size, action_size))
+        L = np.empty(N + 1)
+        L_x = np.empty((N + 1, state_size))
+        L_u = np.empty((N, action_size))
+        L_xx = np.empty((N + 1, state_size, state_size))
+        L_ux = np.empty((N, action_size, state_size))
+        L_uu = np.empty((N, action_size, action_size))
 
         xs[0] = x0
         for i in range(N):
             x = xs[i]
             u = us[i]
 
-            xs[i + 1] = self.dynamics.f(x, u)
-            F_x[i] = self.dynamics.f_x(x, u)
-            F_u[i] = self.dynamics.f_u(x, u)
+            xs[i + 1] = self.dynamics.f(x, u, i)
+            F_x[i] = self.dynamics.f_x(x, u, i)
+            F_u[i] = self.dynamics.f_u(x, u, i)
 
-            L[i] = self.cost.l(x, u, terminal=False)
-            L_x[i] = self.cost.l_x(x, u, terminal=False)
-            L_u[i] = self.cost.l_u(x, u, terminal=False)
-            L_xx[i] = self.cost.l_xx(x, u, terminal=False)
-            L_ux[i] = self.cost.l_ux(x, u, terminal=False)
-            L_uu[i] = self.cost.l_uu(x, u, terminal=False)
+            L[i] = self.cost.l(x, u, i, terminal=False)
+            L_x[i] = self.cost.l_x(x, u, i, terminal=False)
+            L_u[i] = self.cost.l_u(x, u, i, terminal=False)
+            L_xx[i] = self.cost.l_xx(x, u, i, terminal=False)
+            L_ux[i] = self.cost.l_ux(x, u, i, terminal=False)
+            L_uu[i] = self.cost.l_uu(x, u, i, terminal=False)
 
             if self._use_hessians:
-                F_xx[i] = self.dynamics.f_xx(x, u)
-                F_ux[i] = self.dynamics.f_ux(x, u)
-                F_uu[i] = self.dynamics.f_uu(x, u)
+                F_xx[i] = self.dynamics.f_xx(x, u, i)
+                F_ux[i] = self.dynamics.f_ux(x, u, i)
+                F_uu[i] = self.dynamics.f_uu(x, u, i)
 
         x = xs[-1]
-        L[-1] = self.cost.l(x, None, terminal=True)
-        L_x[-1] = self.cost.l_x(x, None, terminal=True)
-        L_xx[-1] = self.cost.l_xx(x, None, terminal=True)
+        L[-1] = self.cost.l(x, None, N, terminal=True)
+        L_x[-1] = self.cost.l_x(x, None, N, terminal=True)
+        L_xx[-1] = self.cost.l_xx(x, None, N, terminal=True)
 
         return xs, F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu, F_xx, F_ux, F_uu
 
@@ -346,8 +345,8 @@ class iLQR(BaseController):
         V_x = L_x[-1]
         V_xx = L_xx[-1]
 
-        k = torch.empty_like(self._k)
-        K = torch.empty_like(self._K)
+        k = np.empty_like(self._k)
+        K = np.empty_like(self._K)
 
         for i in range(self.N - 1, -1, -1):
             if self._use_hessians:
@@ -359,18 +358,21 @@ class iLQR(BaseController):
                 Q_x, Q_u, Q_xx, Q_ux, Q_uu = self._Q(F_x[i], F_u[i], L_x[i],
                                                      L_u[i], L_xx[i], L_ux[i],
                                                      L_uu[i], V_x, V_xx)
+
             # Eq (6).
-            k[i] = -torch.inverse(Q_uu).matmul(Q_u)
-            K[i] = -torch.inverse(Q_uu).matmul(Q_ux)
+            k[i] = -np.linalg.solve(Q_uu, Q_u)
+            K[i] = -np.linalg.solve(Q_uu, Q_ux)
+
             # Eq (11b).
-            V_x = Q_x + K[i].T.matmul(Q_uu).matmul(k[i])
-            V_x += K[i].T.matmul(Q_u) + Q_ux.T.matmul(k[i])
+            V_x = Q_x + K[i].T.dot(Q_uu).dot(k[i])
+            V_x += K[i].T.dot(Q_u) + Q_ux.T.dot(k[i])
 
             # Eq (11c).
-            V_xx = Q_xx + K[i].T.matmul(Q_uu).matmul(K[i])
-            V_xx += K[i].T.matmul(Q_ux) + Q_ux.T.matmul(K[i])
+            V_xx = Q_xx + K[i].T.dot(Q_uu).dot(K[i])
+            V_xx += K[i].T.dot(Q_ux) + Q_ux.T.dot(K[i])
             V_xx = 0.5 * (V_xx + V_xx.T)  # To maintain symmetry.
-        return torch.tensor(k), torch.tensor(K)
+
+        return np.array(k), np.array(K)
 
     def _Q(self,
            f_x,
@@ -415,18 +417,20 @@ class iLQR(BaseController):
                 Q_uu: [action_size, action_size].
         """
         # Eqs (5a), (5b) and (5c).
-        Q_x = l_x + f_x.T.matmul(V_x)
-        Q_u = l_u + f_u.T.matmul(V_x)
-        Q_xx = l_xx + f_x.T.matmul(V_xx).matmul(f_x)
+        Q_x = l_x + f_x.T.dot(V_x)
+        Q_u = l_u + f_u.T.dot(V_x)
+        Q_xx = l_xx + f_x.T.dot(V_xx).dot(f_x)
 
         # Eqs (11b) and (11c).
-        reg = self._mu * torch.eye(self.dynamics.state_size)
-        Q_ux = l_ux + f_u.T.matmul(V_xx + reg).matmul(f_x)
-        Q_uu = l_uu + f_u.T.matmul(V_xx + reg).matmul(f_u)
+        reg = self._mu * np.eye(self.dynamics.state_size)
+        Q_ux = l_ux + f_u.T.dot(V_xx + reg).dot(f_x)
+        Q_uu = l_uu + f_u.T.dot(V_xx + reg).dot(f_u)
+
         if self._use_hessians:
-            Q_xx += torch.tensordot(V_x, f_xx, axes=1)
-            Q_ux += torch.tensordot(V_x, f_ux, axes=1)
-            Q_uu += torch.tensordot(V_x, f_uu, axes=1)
+            Q_xx += np.tensordot(V_x, f_xx, axes=1)
+            Q_ux += np.tensordot(V_x, f_ux, axes=1)
+            Q_uu += np.tensordot(V_x, f_uu, axes=1)
+
         return Q_x, Q_u, Q_xx, Q_ux, Q_uu
 
 
@@ -443,10 +447,10 @@ class RecedingHorizonController(object):
         """
         self._x = x0
         self._controller = controller
-        self._random = torch.Generator()
+        self._random = np.random.RandomState()
 
     def seed(self, seed):
-        self._random.manual_seed(seed)
+        self._random.seed(seed)
 
     def set_state(self, x):
         """Sets the current state of the controller.
@@ -510,5 +514,5 @@ class RecedingHorizonController(object):
             # optimal path and appending random unoptimal values at the end.
             us_start = us[step_size:]
             us_end = self._random.uniform(-1, 1, (step_size, action_size))
-            us_init = torch.vstack([us_start, us_end])
+            us_init = np.vstack([us_start, us_end])
             n_iterations = subsequent_n_iterations

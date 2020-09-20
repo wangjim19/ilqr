@@ -15,7 +15,7 @@
 """Inverted pendulum example."""
 
 import numpy as np
-import theano.tensor as T
+import torch
 from ..dynamics import AutoDiffDynamics, tensor_constrain
 
 
@@ -30,8 +30,7 @@ class InvertedPendulumDynamics(AutoDiffDynamics):
                  max_bounds=1.0,
                  m=1.0,
                  l=1.0,
-                 g=9.80665,
-                 **kwargs):
+                 g=9.80665):
         """Constructs an InvertedPendulumDynamics model.
 
         Args:
@@ -54,35 +53,34 @@ class InvertedPendulumDynamics(AutoDiffDynamics):
         self.min_bounds = min_bounds
         self.max_bounds = max_bounds
 
-        def f(x, u):
+        def f(x, u, i):
             # Constrain action space.
             if constrain:
                 u = tensor_constrain(u, min_bounds, max_bounds)
 
-            sin_theta = x[..., 0]
-            cos_theta = x[..., 1]
-            theta_dot = x[..., 2]
-            torque = u[..., 0]
+            sin_theta = x[0]
+            cos_theta = x[1]
+            theta_dot = x[2]
+            torque = u[0]
 
             # Deal with angle wrap-around.
             theta = torch.atan2(sin_theta, cos_theta)
 
             # Define acceleration.
-            theta_dot_dot = -3.0 * g / (2 * l) * T.sin(theta + np.pi)
+            theta_dot_dot = -3.0 * g / (2 * l) * torch.sin(theta + np.pi)
             theta_dot_dot += 3.0 / (m * l**2) * torque
 
             next_theta = theta + theta_dot * dt
 
-            return torch.stack([
+            return torch.stack((
                 torch.sin(next_theta),
                 torch.cos(next_theta),
                 theta_dot + theta_dot_dot * dt,
-            ]).T
+            ))
 
         super(InvertedPendulumDynamics, self).__init__(f,
                                                        state_size=3,
-                                                       action_size=1,
-                                                       **kwargs)
+                                                       action_size=1)
 
     @classmethod
     def augment_state(cls, state):
@@ -99,13 +97,11 @@ class InvertedPendulumDynamics(AutoDiffDynamics):
         Returns:
             Augmented state size [state_size].
         """
-        if state.ndim == 1:
-            theta, theta_dot = state
-        else:
-            theta = state[0]
-            theta_dot = state[1]
 
-        return torch.stack([torch.sin(theta), torch.cos(theta), theta_dot])
+        theta = state[0]
+        theta_dot = state[1]
+
+        return np.hstack([np.sin(theta), np.cos(theta), theta_dot])
 
     @classmethod
     def reduce_state(cls, state):
@@ -122,12 +118,10 @@ class InvertedPendulumDynamics(AutoDiffDynamics):
         Returns:
             Reduced state size [reducted_state_size].
         """
-        if state.ndim == 1:
-            sin_theta, cos_theta, theta_dot = state
-        else:
-            sin_theta = state[0]
-            cos_theta = state[1]
-            theta_dot = state[2]
 
-        theta = torch.atan2(sin_theta, cos_theta)
-        return torch.stack([theta, theta_dot])
+        sin_theta = state[0]
+        cos_theta = state[1]
+        theta_dot = state[2]
+
+        theta = np.arctan2(sin_theta, cos_theta)
+        return np.hstack([theta, theta_dot])

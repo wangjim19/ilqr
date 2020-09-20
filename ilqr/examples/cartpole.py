@@ -31,7 +31,8 @@ class CartpoleDynamics(AutoDiffDynamics):
                  mc=1.0,
                  mp=0.1,
                  l=1.0,
-                 g=9.80665,):
+                 g=9.80665,
+                 **kwargs):
         """Cartpole dynamics.
 
         Args:
@@ -53,7 +54,7 @@ class CartpoleDynamics(AutoDiffDynamics):
         self.min_bounds = min_bounds
         self.max_bounds = max_bounds
 
-        def f(x, u):
+        def f(x, u, i):
             # Constrain action space.
             if constrain:
                 u = tensor_constrain(u, min_bounds, max_bounds)
@@ -82,13 +83,13 @@ class CartpoleDynamics(AutoDiffDynamics):
             theta = torch.atan2(sin_theta, cos_theta)
             next_theta = theta + theta_dot * dt
 
-            return torch.stack([
+            return torch.stack((
                 x_ + x_dot * dt,
                 x_dot + x_dot_dot * dt,
                 torch.sin(next_theta),
                 torch.cos(next_theta),
                 theta_dot + theta_dot_dot * dt,
-            ])
+            ))
 
         super(CartpoleDynamics, self).__init__(f,
                                                state_size=5,
@@ -114,7 +115,7 @@ class CartpoleDynamics(AutoDiffDynamics):
         theta = state[2]
         theta_dot = state[3]
 
-        return torch.stack([x, x_dot, np.sin(theta), np.cos(theta), theta_dot])
+        return np.hstack([x, x_dot, np.sin(theta), np.cos(theta), theta_dot])
 
     @classmethod
     def reduce_state(cls, state):
@@ -137,5 +138,5 @@ class CartpoleDynamics(AutoDiffDynamics):
         cos_theta = state[3]
         theta_dot = state[4]
 
-        theta = torch.atan2(sin_theta, cos_theta)
-        return torch.stack([x, x_dot, theta, theta_dot])
+        theta = np.arctan2(sin_theta, cos_theta)
+        return np.hstack([x, x_dot, theta, theta_dot])
