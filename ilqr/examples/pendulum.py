@@ -86,20 +86,18 @@ class InvertedPendulumDynamics(AutoDiffDynamics):
     def augment_state(cls, state):
         """Augments angular state into a non-angular state by replacing theta
         with sin(theta) and cos(theta).
-
         In this case, it converts:
-
             [theta, theta'] -> [sin(theta), cos(theta), theta']
-
         Args:
             state: State vector [reducted_state_size].
-
         Returns:
             Augmented state size [state_size].
         """
-
-        theta = state[0]
-        theta_dot = state[1]
+        if state.ndim == 1:
+            theta, theta_dot = state
+        else:
+            theta = state[..., 0].reshape(-1, 1)
+            theta_dot = state[..., 1].reshape(-1, 1)
 
         return np.hstack([np.sin(theta), np.cos(theta), theta_dot])
 
@@ -107,21 +105,19 @@ class InvertedPendulumDynamics(AutoDiffDynamics):
     def reduce_state(cls, state):
         """Reduces a non-angular state into an angular state by replacing
         sin(theta) and cos(theta) with theta.
-
         In this case, it converts:
-
             [sin(theta), cos(theta), theta'] -> [theta, theta']
-
         Args:
             state: Augmented state vector [state_size].
-
         Returns:
             Reduced state size [reducted_state_size].
         """
-
-        sin_theta = state[0]
-        cos_theta = state[1]
-        theta_dot = state[2]
+        if state.ndim == 1:
+            sin_theta, cos_theta, theta_dot = state
+        else:
+            sin_theta = state[..., 0].reshape(-1, 1)
+            cos_theta = state[..., 1].reshape(-1, 1)
+            theta_dot = state[..., 2].reshape(-1, 1)
 
         theta = np.arctan2(sin_theta, cos_theta)
         return np.hstack([theta, theta_dot])
