@@ -267,13 +267,13 @@ class FiniteDiffDynamics(Dynamics):
 
     """Finite difference approximated Dynamics Model.
 
-    Uses numpy arrays, not torch tensors."""
+    Internally uses scipy/numpy to compute finite differences, not pytorch."""
 
     def __init__(self, f, state_size, action_size, x_eps=None, u_eps=None):
         """Constructs an FiniteDiffDynamics model.
 
         Args:
-            f: Function to approximate. Signature: (x, u) -> x.
+            f: Function to approximate. Signature: (x, u) -> x. where x, u, x are torch tensors
             state_size: State size.
             action_size: Action size.
             x_eps: Increment to the state to use when estimating the gradient.
@@ -285,7 +285,7 @@ class FiniteDiffDynamics(Dynamics):
             The square root of the provided epsilons are used when computing
             the Hessians instead.
         """
-        self._f = f
+        self._f = lambda x, u : f(x, u).numpy()
         self._state_size = state_size
         self._action_size = action_size
 
@@ -322,7 +322,7 @@ class FiniteDiffDynamics(Dynamics):
         Returns:
             Next state [state_size].
         """
-        return self._f(x, u)
+        return torch.from_numpy(self._f(x, u))
 
     def f_x(self, x, u):
         """Partial derivative of dynamics model with respect to x.
@@ -335,10 +335,10 @@ class FiniteDiffDynamics(Dynamics):
             df/dx [state_size, state_size].
         """
         J = np.vstack([
-            approx_fprime(x, lambda x: self._f(x, u, i)[m], self._x_eps)
+            approx_fprime(x, lambda x: self._f(x, u)[m], self._x_eps)
             for m in range(self._state_size)
         ])
-        return J
+        return torch.from_numpy(J)
 
     def f_u(self, x, u):
         """Partial derivative of dynamics model with respect to u.
@@ -351,10 +351,10 @@ class FiniteDiffDynamics(Dynamics):
             df/du [state_size, action_size].
         """
         J = np.vstack([
-            approx_fprime(u, lambda u: self._f(x, u, i)[m], self._u_eps)
+            approx_fprime(u, lambda u: self._f(x, u)[m], self._u_eps)
             for m in range(self._state_size)
         ])
-        return J
+        return torch.from_numpy(J)
 
     def f_xx(self, x, u):
         """Second partial derivative of dynamics model with respect to x.
@@ -371,13 +371,13 @@ class FiniteDiffDynamics(Dynamics):
         # yapf: disable
         Q = np.array([
             [
-                approx_fprime(x, lambda x: self.f_x(x, u, i)[m, n], eps)
+                approx_fprime(x, lambda x: self.f_x(x, u).numpy()[m, n], eps)
                 for n in range(self._state_size)
             ]
             for m in range(self._state_size)
         ])
         # yapf: enable
-        return Q
+        return torch.from_numpy(Q)
 
     def f_ux(self, x, u):
         """Second partial derivative of dynamics model with respect to u and x.
@@ -394,13 +394,13 @@ class FiniteDiffDynamics(Dynamics):
         # yapf: disable
         Q = np.array([
             [
-                approx_fprime(x, lambda x: self.f_u(x, u, i)[m, n], eps)
+                approx_fprime(x, lambda x: self.f_u(x, u).numpy()[m, n], eps)
                 for n in range(self._action_size)
             ]
             for m in range(self._state_size)
         ])
         # yapf: enable
-        return Q
+        return torch.from_numpy(Q)
 
     def f_uu(self, x, u):
         """Second partial derivative of dynamics model with respect to u.
@@ -417,13 +417,13 @@ class FiniteDiffDynamics(Dynamics):
         # yapf: disable
         Q = np.array([
             [
-                approx_fprime(u, lambda u: self.f_u(x, u, i)[m, n], eps)
+                approx_fprime(u, lambda u: self.f_u(x, u).numpy()[m, n], eps)
                 for n in range(self._action_size)
             ]
             for m in range(self._state_size)
         ])
         # yapf: enable
-        return Q
+        return torch.from_numpy(Q)
 
 
 def constrain(u, min_bounds, max_bounds):

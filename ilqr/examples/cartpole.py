@@ -15,11 +15,11 @@
 """Cartpole example."""
 
 import numpy as np
-import theano.tensor as T
-from ..dynamics import BatchAutoDiffDynamics, tensor_constrain
+import torch
+from ..dynamics import AutoDiffDynamics, tensor_constrain
 
 
-class CartpoleDynamics(BatchAutoDiffDynamics):
+class CartpoleDynamics(AutoDiffDynamics):
 
     """Cartpole auto-differentiated dynamics model."""
 
@@ -31,8 +31,7 @@ class CartpoleDynamics(BatchAutoDiffDynamics):
                  mc=1.0,
                  mp=0.1,
                  l=1.0,
-                 g=9.80665,
-                 **kwargs):
+                 g=9.80665,):
         """Cartpole dynamics.
 
         Args:
@@ -44,8 +43,6 @@ class CartpoleDynamics(BatchAutoDiffDynamics):
             mp: Pendulum mass [kg].
             l: Pendulum length [m].
             g: Gravity acceleration [m/s^2].
-            **kwargs: Additional key-word arguments to pass to the
-                AutoDiffDynamics constructor.
 
         Note:
             state: [x, x', sin(theta), cos(theta), theta']
@@ -61,12 +58,12 @@ class CartpoleDynamics(BatchAutoDiffDynamics):
             if constrain:
                 u = tensor_constrain(u, min_bounds, max_bounds)
 
-            x_ = x[..., 0]
-            x_dot = x[..., 1]
-            sin_theta = x[..., 2]
-            cos_theta = x[..., 3]
-            theta_dot = x[..., 4]
-            F = u[..., 0]
+            x_ = x[0]
+            x_dot = x[1]
+            sin_theta = x[2]
+            cos_theta = x[3]
+            theta_dot = x[4]
+            F = u[0]
 
             # Define dynamics model as per Razvan V. Florian's
             # "Correct equations for the dynamics of the cart-pole system".
@@ -85,18 +82,17 @@ class CartpoleDynamics(BatchAutoDiffDynamics):
             theta = T.arctan2(sin_theta, cos_theta)
             next_theta = theta + theta_dot * dt
 
-            return T.stack([
+            return torch.stack([
                 x_ + x_dot * dt,
                 x_dot + x_dot_dot * dt,
                 T.sin(next_theta),
                 T.cos(next_theta),
                 theta_dot + theta_dot_dot * dt,
-            ]).T
+            ])
 
         super(CartpoleDynamics, self).__init__(f,
                                                state_size=5,
-                                               action_size=1,
-                                               **kwargs)
+                                               action_size=1)
 
     @classmethod
     def augment_state(cls, state):
@@ -113,15 +109,12 @@ class CartpoleDynamics(BatchAutoDiffDynamics):
         Returns:
             Augmented state size [state_size].
         """
-        if state.ndim == 1:
-            x, x_dot, theta, theta_dot = state
-        else:
-            x = state[..., 0].reshape(-1, 1)
-            x_dot = state[..., 1].reshape(-1, 1)
-            theta = state[..., 2].reshape(-1, 1)
-            theta_dot = state[..., 3].reshape(-1, 1)
+        x = state[0]
+        x_dot = state[1]
+        theta = state[2]
+        theta_dot = state[3]
 
-        return np.hstack([x, x_dot, np.sin(theta), np.cos(theta), theta_dot])
+        return torch.hstack([x, x_dot, np.sin(theta), np.cos(theta), theta_dot])
 
     @classmethod
     def reduce_state(cls, state):
@@ -138,14 +131,11 @@ class CartpoleDynamics(BatchAutoDiffDynamics):
         Returns:
             Reduced state size [reducted_state_size].
         """
-        if state.ndim == 1:
-            x, x_dot, sin_theta, cos_theta, theta_dot = state
-        else:
-            x = state[..., 0].reshape(-1, 1)
-            x_dot = state[..., 1].reshape(-1, 1)
-            sin_theta = state[..., 2].reshape(-1, 1)
-            cos_theta = state[..., 3].reshape(-1, 1)
-            theta_dot = state[..., 4].reshape(-1, 1)
+        x = state[0]
+        x_dot = state[1]
+        sin_theta = state[2]
+        cos_theta = state[3]
+        theta_dot = state[4]
 
-        theta = np.arctan2(sin_theta, cos_theta)
-        return np.hstack([x, x_dot, theta, theta_dot])
+        theta = torch.atan2(sin_theta, cos_theta)
+        return torch.hstack([x, x_dot, theta, theta_dot])

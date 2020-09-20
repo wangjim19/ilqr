@@ -282,9 +282,9 @@ class FiniteDiffCost(Cost):
 
         Args:
             l: Instantaneous cost function to approximate.
-                Signature: (x, u, i) -> scalar.
+                Signature: (x, u) -> scalar. where x, u, scalar are torch tensors
             l_terminal: Terminal cost function to approximate.
-                Signature: (x, i) -> scalar.
+                Signature: (x) -> scalar.
             state_size: State size.
             action_size: Action size.
             x_eps: Increment to the state to use when estimating the gradient.
@@ -296,8 +296,8 @@ class FiniteDiffCost(Cost):
             The square root of the provided epsilons are used when computing
             the Hessians instead.
         """
-        self._l = l
-        self._l_terminal = l_terminal
+        self._l = lambda x, u : l(x, u).numpy()
+        self._l_terminal = lambda x: l_terminal(x).numpy()
         self._state_size = state_size
         self._action_size = action_size
 
@@ -309,42 +309,40 @@ class FiniteDiffCost(Cost):
 
         super(FiniteDiffCost, self).__init__()
 
-    def l(self, x, u, i, terminal=False):
+    def l(self, x, u, terminal=False):
         """Instantaneous cost function.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size]. None if terminal.
-            i: Current time step.
             terminal: Compute terminal cost. Default: False.
 
         Returns:
             Instantaneous cost (scalar).
         """
         if terminal:
-            return self._l_terminal(x, i)
+            return torch.from_numpy(self._l_terminal(x))
 
-        return self._l(x, u, i)
+        return torch.from_numpy(self._l(x, u))
 
-    def l_x(self, x, u, i, terminal=False):
+    def l_x(self, x, u, terminal=False):
         """Partial derivative of cost function with respect to x.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size]. None if terminal.
-            i: Current time step.
             terminal: Compute terminal cost. Default: False.
 
         Returns:
             dl/dx [state_size].
         """
         if terminal:
-            return approx_fprime(x, lambda x: self._l_terminal(x, i),
-                                 self._x_eps)
+            return torch.from_numpy(approx_fprime(x, lambda x: self._l_terminal(x),
+                                 self._x_eps))
 
-        return approx_fprime(x, lambda x: self._l(x, u, i), self._x_eps)
+        return torch.from_numpy(approx_fprime(x, lambda x: self._l(x, u), self._x_eps))
 
-    def l_u(self, x, u, i, terminal=False):
+    def l_u(self, x, u, terminal=False):
         """Partial derivative of cost function with respect to u.
 
         Args:
@@ -358,17 +356,16 @@ class FiniteDiffCost(Cost):
         """
         if terminal:
             # Not a function of u, so the derivative is zero.
-            return np.zeros(self._action_size)
+            return torch.zeros(self._action_size)
 
-        return approx_fprime(u, lambda u: self._l(x, u, i), self._u_eps)
+        return torch.from_numpy(approx_fprime(u, lambda u: self._l(x, u), self._u_eps))
 
-    def l_xx(self, x, u, i, terminal=False):
+    def l_xx(self, x, u, terminal=False):
         """Second partial derivative of cost function with respect to x.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size]. None if terminal.
-            i: Current time step.
             terminal: Compute terminal cost. Default: False.
 
         Returns:
@@ -376,10 +373,10 @@ class FiniteDiffCost(Cost):
         """
         eps = self._x_eps_hess
         Q = np.vstack([
-            approx_fprime(x, lambda x: self.l_x(x, u, i, terminal)[m], eps)
+            approx_fprime(x, lambda x: self.l_x(x, u, terminal).numpy()[m], eps)
             for m in range(self._state_size)
         ])
-        return Q
+        return torch.from_numpy(Q)
 
     def l_ux(self, x, u, i, terminal=False):
         """Second partial derivative of cost function with respect to u and x.
@@ -395,22 +392,21 @@ class FiniteDiffCost(Cost):
         """
         if terminal:
             # Not a function of u, so the derivative is zero.
-            return np.zeros((self._action_size, self._state_size))
+            return torch.zeros((self._action_size, self._state_size))
 
         eps = self._x_eps_hess
         Q = np.vstack([
-            approx_fprime(x, lambda x: self.l_u(x, u, i)[m], eps)
+            approx_fprime(x, lambda x: self.l_u(x, u).numpy()[m], eps)
             for m in range(self._action_size)
         ])
-        return Q
+        return torch.from_numpy(Q)
 
-    def l_uu(self, x, u, i, terminal=False):
+    def l_uu(self, x, u, terminal=False):
         """Second partial derivative of cost function with respect to u.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size]. None if terminal.
-            i: Current time step.
             terminal: Compute terminal cost. Default: False.
 
         Returns:
@@ -418,14 +414,14 @@ class FiniteDiffCost(Cost):
         """
         if terminal:
             # Not a function of u, so the derivative is zero.
-            return np.zeros((self._action_size, self._action_size))
+            return torch.zeros((self._action_size, self._action_size))
 
         eps = self._u_eps_hess
         Q = np.vstack([
-            approx_fprime(u, lambda u: self.l_u(x, u, i)[m], eps)
+            approx_fprime(u, lambda u: self.l_u(x, u).numpy()[m], eps)
             for m in range(self._action_size)
         ])
-        return Q
+        return torch.from_numpy(Q)
 
 
 class QRCost(Cost):
@@ -443,23 +439,23 @@ class QRCost(Cost):
             x_goal: Goal state [state_size].
             u_goal: Goal control [action_size].
         """
-        self.Q = np.array(Q)
-        self.R = np.array(R)
+        self.Q = torch.tensor(Q)
+        self.R = torch.tensor(R)
 
         if Q_terminal is None:
             self.Q_terminal = self.Q
         else:
-            self.Q_terminal = np.array(Q_terminal)
+            self.Q_terminal = torch.tensor(Q_terminal)
 
         if x_goal is None:
-            self.x_goal = np.zeros(Q.shape[0])
+            self.x_goal = torch.zeros(Q.shape[0])
         else:
-            self.x_goal = np.array(x_goal)
+            self.x_goal = torch.tensor(x_goal)
 
         if u_goal is None:
-            self.u_goal = np.zeros(R.shape[0])
+            self.u_goal = torch.zeros(R.shape[0])
         else:
-            self.u_goal = np.array(u_goal)
+            self.u_goal = torch.tensor(u_goal)
 
         assert self.Q.shape == self.Q_terminal.shape, "Q & Q_terminal mismatch"
         assert self.Q.shape[0] == self.Q.shape[1], "Q must be square"
@@ -474,13 +470,12 @@ class QRCost(Cost):
 
         super(QRCost, self).__init__()
 
-    def l(self, x, u, i, terminal=False):
+    def l(self, x, u, terminal=False):
         """Instantaneous cost function.
 
         Args:
             x: Current state [state_size].
             u: Current control [action_size]. None if terminal.
-            i: Current time step.
             terminal: Compute terminal cost. Default: False.
 
         Returns:
@@ -497,7 +492,7 @@ class QRCost(Cost):
         u_diff = u - self.u_goal
         return squared_x_cost + u_diff.T.dot(R).dot(u_diff)
 
-    def l_x(self, x, u, i, terminal=False):
+    def l_x(self, x, u, terminal=False):
         """Partial derivative of cost function with respect to x.
 
         Args:
@@ -513,7 +508,7 @@ class QRCost(Cost):
         x_diff = x - self.x_goal
         return x_diff.T.dot(Q_plus_Q_T)
 
-    def l_u(self, x, u, i, terminal=False):
+    def l_u(self, x, u, terminal=False):
         """Partial derivative of cost function with respect to u.
 
         Args:
@@ -526,7 +521,7 @@ class QRCost(Cost):
             dl/du [action_size].
         """
         if terminal:
-            return np.zeros_like(self.u_goal)
+            return torch.zeros_like(self.u_goal)
 
         u_diff = u - self.u_goal
         return u_diff.T.dot(self._R_plus_R_T)
@@ -557,7 +552,7 @@ class QRCost(Cost):
         Returns:
             d^2l/dudx [action_size, state_size].
         """
-        return np.zeros((self.R.shape[0], self.Q.shape[0]))
+        return torch.zeros((self.R.shape[0], self.Q.shape[0]))
 
     def l_uu(self, x, u, i, terminal=False):
         """Second partial derivative of cost function with respect to u.
@@ -572,7 +567,7 @@ class QRCost(Cost):
             d^2l/du^2 [action_size, action_size].
         """
         if terminal:
-            return np.zeros_like(self.R)
+            return torch.zeros_like(self.R)
 
         return self._R_plus_R_T
 
@@ -592,9 +587,9 @@ class PathQRCost(Cost):
             Q_terminal: Terminal quadratic state cost matrix
                 [state_size, state_size].
         """
-        self.Q = np.array(Q)
-        self.R = np.array(R)
-        self.x_path = np.array(x_path)
+        self.Q = torch.tensor(Q)
+        self.R = torch.tensor(R)
+        self.x_path = torch.tensor(x_path)
 
         state_size = self.Q.shape[0]
         action_size = self.R.shape[0]
@@ -603,12 +598,12 @@ class PathQRCost(Cost):
         if Q_terminal is None:
             self.Q_terminal = self.Q
         else:
-            self.Q_terminal = np.array(Q_terminal)
+            self.Q_terminal = torch.tensor(Q_terminal)
 
         if u_path is None:
-            self.u_path = np.zeros(path_length - 1, action_size)
+            self.u_path = torch.zeros(path_length - 1, action_size)
         else:
-            self.u_path = np.array(u_path)
+            self.u_path = torch.tensor(u_path)
 
         assert self.Q.shape == self.Q_terminal.shape, "Q & Q_terminal mismatch"
         assert self.Q.shape[0] == self.Q.shape[1], "Q must be square"
@@ -677,7 +672,7 @@ class PathQRCost(Cost):
             dl/du [action_size].
         """
         if terminal:
-            return np.zeros_like(self.u_path)
+            return torch.zeros_like(self.u_path)
 
         u_diff = u - self.u_path[i]
         return u_diff.T.dot(self._R_plus_R_T)
@@ -708,7 +703,7 @@ class PathQRCost(Cost):
         Returns:
             d^2l/dudx [action_size, state_size].
         """
-        return np.zeros((self.R.shape[0], self.Q.shape[0]))
+        return torch.zeros((self.R.shape[0], self.Q.shape[0]))
 
     def l_uu(self, x, u, i, terminal=False):
         """Second partial derivative of cost function with respect to u.
@@ -723,6 +718,6 @@ class PathQRCost(Cost):
             d^2l/du^2 [action_size, action_size].
         """
         if terminal:
-            return np.zeros_like(self.R)
+            return torch.zeros_like(self.R)
 
         return self._R_plus_R_T
