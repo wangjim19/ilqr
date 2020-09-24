@@ -1,5 +1,6 @@
 import mujoco_py
 from mujoco_py import MjSim, load_model_from_path
+import numpy as np
 
 class MujocoDynamics:
 
@@ -67,10 +68,10 @@ class MujocoDynamics:
         Args:
             state: numpy state vector
         """
-        self.sim.data.qpos[:] = state[:self.model.nq]
-        self.sim.data.qvel[:] = state[self.model.nq:]
+        self.sim.data.qpos[:] = state[:self.sim.model.nq]
+        self.sim.data.qvel[:] = state[self.sim.model.nq:]
 
-    def get_state(self, state):
+    def get_state(self):
         """Gets state of simulator
 
         Returns:
