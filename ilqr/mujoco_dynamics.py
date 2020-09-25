@@ -91,6 +91,74 @@ class MujocoDynamics:
         self.sim.step()
         return self.get_state()
 
+    def f_x(self, state, action):
+        """Evaluate f_x at specified state and action by finite differencing
+
+        Args:
+            state: numpy state vector
+            action: numpy action vector (unconstrained)
+        Returns:
+            f_x
+        """
+        self.set_state(state)
+        self.step(action)
+        center = self.get_state()
+        f_x = np.empty((self.state_size, self.state_size))
+
+        self.sim.data.ctrl[:] = self.constrain(action)
+        for i in range(self.sim.model.nq):
+            self.sim.data.qpos[:] = state[:self.sim.model.nq]
+            self.sim.data.qvel[:] = state[self.sim.model.nq:]
+
+            self.sim.data.qpos[i] += x_eps
+
+            self.sim.step()
+            newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
+            deriv = (newstate - center) / x_eps
+            f_x[:, i] = deriv
+
+        for i in range(self.sim.model.nv):
+            self.sim.data.qpos[:] = state[:self.sim.model.nq]
+            self.sim.data.qvel[:] = state[self.sim.model.nq:]
+
+            self.sim.data.qvel[i] += x_eps
+
+            self.sim.step()
+            newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
+            deriv = (newstate - center) / x_eps
+            f_x[:, self.sim.model.nq + i] = deriv
+
+        return f_x
+
+    def f_u(self, state, action):
+        """Evaluate f_u at specified state and action by finite differencing
+
+        Args:
+            state: numpy state vector
+            action: numpy action vector (unconstrained)
+        Returns:
+            f_u
+        """
+        self.set_state(state)
+        self.step(action)
+        center = self.get_state()
+        f_u = np.empty((self.state_size, self.action_size))
+
+
+        for i in range(self.action_size):
+            self.sim.data.qpos[:] = state[:self.sim.model.nq]
+            self.sim.data.qvel[:] = state[self.sim.model.nq:]
+
+            action[i] += u_eps
+            self.sim.data.ctrl[:] = self.constrain(action)
+
+            self.sim.step()
+            newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
+            deriv = (newstate - center) / u_eps
+            f_u[:, i] = deriv
+
+            action[i] -= u_eps
+
     def constrain(self, action):
         """Calculates control vector to be passed into model, constraining if necessary
 
