@@ -60,7 +60,7 @@ class MujocoDynamics:
     @property
     def dt(self):
         """Time elapsed per step"""
-        return self.model.opt.timestep * self.frame_skip
+        return self._model.opt.timestep * self._frame_skip
 
     def set_state(self, state):
         """Sets state of simulator
@@ -87,8 +87,11 @@ class MujocoDynamics:
         Returns:
             next state vector
         """
-        self.sim.data.ctrl[:] = self.constrain(action)
-        self.sim.step()
+        try:
+            self.sim.data.ctrl[:] = self.constrain(action)
+            self.sim.step()
+        except:
+            print(self.sim.data.qpos, self.sim.data.qvel, self.sim.data.ctrl, self.sim.data.qacc, self.sim.data.time)
         return self.get_state()
 
     def f_x(self, state, action):
@@ -110,22 +113,22 @@ class MujocoDynamics:
             self.sim.data.qpos[:] = state[:self.sim.model.nq]
             self.sim.data.qvel[:] = state[self.sim.model.nq:]
 
-            self.sim.data.qpos[i] += x_eps
+            self.sim.data.qpos[i] += self.x_eps
 
             self.sim.step()
             newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
-            deriv = (newstate - center) / x_eps
+            deriv = (newstate - center) / self.x_eps
             f_x[:, i] = deriv
 
         for i in range(self.sim.model.nv):
             self.sim.data.qpos[:] = state[:self.sim.model.nq]
             self.sim.data.qvel[:] = state[self.sim.model.nq:]
 
-            self.sim.data.qvel[i] += x_eps
+            self.sim.data.qvel[i] += self.x_eps
 
             self.sim.step()
             newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
-            deriv = (newstate - center) / x_eps
+            deriv = (newstate - center) / self.x_eps
             f_x[:, self.sim.model.nq + i] = deriv
 
         return f_x
@@ -149,15 +152,15 @@ class MujocoDynamics:
             self.sim.data.qpos[:] = state[:self.sim.model.nq]
             self.sim.data.qvel[:] = state[self.sim.model.nq:]
 
-            action[i] += u_eps
+            action[i] += self.u_eps
             self.sim.data.ctrl[:] = self.constrain(action)
 
             self.sim.step()
             newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
-            deriv = (newstate - center) / u_eps
+            deriv = (newstate - center) / self.u_eps
             f_u[:, i] = deriv
 
-            action[i] -= u_eps
+            action[i] -= self.u_eps
 
     def constrain(self, action):
         """Calculates control vector to be passed into model, constraining if necessary
