@@ -1,6 +1,8 @@
 import mujoco_py
 from mujoco_py import MjSim, load_model_from_path
 import numpy as np
+from scipy.optimize import approx_fprime
+import time
 
 class MujocoDynamics:
 
@@ -11,8 +13,8 @@ class MujocoDynamics:
                  frame_skip = 1,
                  constrain = True,
                  bounds = None,
-                 x_eps = 1e-6,
-                 u_eps = 1e-6):
+                 x_eps = 1.5e-8,
+                 u_eps = 1.5e-8):
         """Constructs an AutoDiffDynamics model.
 
         Args:
@@ -39,7 +41,7 @@ class MujocoDynamics:
         self.constrained = constrain
         self.bounds = None
         if constrain:
-            if bounds:
+            if bounds is not None:
                 self.bounds = bounds
             else:
                 self.bounds = self.sim.model.actuator_ctrlrange
@@ -70,6 +72,7 @@ class MujocoDynamics:
         """
         self.sim.data.qpos[:] = state[:self.sim.model.nq]
         self.sim.data.qvel[:] = state[self.sim.model.nq:]
+        self.sim.forward()
 
     def get_state(self):
         """Gets state of simulator
@@ -87,11 +90,9 @@ class MujocoDynamics:
         Returns:
             next state vector
         """
-        try:
-            self.sim.data.ctrl[:] = self.constrain(action)
-            self.sim.step()
-        except:
-            print(self.sim.data.qpos, self.sim.data.qvel, self.sim.data.ctrl, self.sim.data.qacc, self.sim.data.time)
+
+        self.sim.data.ctrl[:] = self.constrain(action)
+        self.sim.step()
         return self.get_state()
 
     def f_x(self, state, action):
@@ -103,7 +104,7 @@ class MujocoDynamics:
         Returns:
             f_x
         """
-        self.set_state(state)
+        """self.set_state(state)
         self.step(action)
         center = self.get_state()
         f_x = np.empty((self.state_size, self.state_size))
@@ -129,8 +130,17 @@ class MujocoDynamics:
             self.sim.step()
             newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
             deriv = (newstate - center) / self.x_eps
-            f_x[:, self.sim.model.nq + i] = deriv
+            f_x[:, self.sim.model.nq + i] = deriv"""
 
+
+        def helper(x, u):
+            self.set_state(x)
+            return self.step(u)
+
+        f_x = np.vstack([
+                    approx_fprime(state, lambda x: helper(x, action)[m], self.x_eps)
+                    for m in range(self.state_size)
+                ])
         return f_x
 
     def f_u(self, state, action):
@@ -142,7 +152,7 @@ class MujocoDynamics:
         Returns:
             f_u
         """
-        self.set_state(state)
+        """self.set_state(state)
         self.step(action)
         center = self.get_state()
         f_u = np.empty((self.state_size, self.action_size))
@@ -160,7 +170,18 @@ class MujocoDynamics:
             deriv = (newstate - center) / self.u_eps
             f_u[:, i] = deriv
 
-            action[i] -= self.u_eps
+            action[i] -= self.u_eps"""
+
+        def helper(x, u):
+            self.set_state(x)
+            return self.step(u)
+
+        f_u = np.vstack([
+                    approx_fprime(action, lambda u: helper(state, u)[m], self.u_eps)
+                    for m in range(self.state_size)
+                ])
+
+        return f_u
 
     def constrain(self, action):
         """Calculates control vector to be passed into model, constraining if necessary

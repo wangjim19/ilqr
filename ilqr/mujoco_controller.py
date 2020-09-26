@@ -192,7 +192,7 @@ class iLQR(BaseController):
         xs_new = np.zeros_like(xs)
         us_new = np.zeros_like(us)
         xs_new[0] = xs[0].copy()
-        self.dynamics.set_state(xs_new[0])
+        self.dynamics.set_state(xs[0])
 
         for i in range(self.N):
             # Eq (12).
@@ -200,7 +200,6 @@ class iLQR(BaseController):
 
             # Eq (8c).
             xs_new[i + 1] = self.dynamics.step(us_new[i])
-
         return xs_new, us_new
 
     def _trajectory_cost(self, xs, us):
@@ -269,6 +268,7 @@ class iLQR(BaseController):
             x = xs[i]
             u = us[i]
 
+            self.dynamics.set_state(x)
             xs[i + 1] = self.dynamics.step(u)
             F_x[i] = self.dynamics.f_x(x, u)
             F_u[i] = self.dynamics.f_u(x, u)
