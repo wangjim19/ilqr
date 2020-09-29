@@ -268,7 +268,6 @@ class iLQR(BaseController):
             x = xs[i]
             u = us[i]
 
-            self.dynamics.set_state(x)
             xs[i + 1] = self.dynamics.step(u)
             F_x[i] = self.dynamics.f_x(x, u)
             F_u[i] = self.dynamics.f_u(x, u)

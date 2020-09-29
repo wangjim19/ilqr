@@ -104,43 +104,38 @@ class MujocoDynamics:
         Returns:
             f_x
         """
-        """self.set_state(state)
-        self.step(action)
-        center = self.get_state()
+
+        while len(self._simpool) < 1:
+            self._simpool.append(MjSim(self._model, nsubsteps = self._frame_skip))
+
+        self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
+        self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
+        self._simpool[0].data.ctrl[:] = self.constrain(action)
+        self._simpool[0].step()
+        center = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
         f_x = np.empty((self.state_size, self.state_size))
 
-        self.sim.data.ctrl[:] = self.constrain(action)
-        for i in range(self.sim.model.nq):
-            self.sim.data.qpos[:] = state[:self.sim.model.nq]
-            self.sim.data.qvel[:] = state[self.sim.model.nq:]
 
-            self.sim.data.qpos[i] += self.x_eps
+        for i in range(self._simpool[0].model.nq):
+            self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
+            self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
 
-            self.sim.step()
-            newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
-            deriv = (newstate - center) / self.x_eps
-            f_x[:, i] = deriv
+            self._simpool[0].data.qpos[i] += self.x_eps
 
-        for i in range(self.sim.model.nv):
-            self.sim.data.qpos[:] = state[:self.sim.model.nq]
-            self.sim.data.qvel[:] = state[self.sim.model.nq:]
+            self._simpool[0].step()
+            newstate = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
+            f_x[:, i] = (newstate - center) / self.x_eps
 
-            self.sim.data.qvel[i] += self.x_eps
+        for i in range(self._simpool[0].model.nv):
+            self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
+            self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
 
-            self.sim.step()
-            newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
-            deriv = (newstate - center) / self.x_eps
-            f_x[:, self.sim.model.nq + i] = deriv"""
+            self._simpool[0].data.qvel[i] += self.x_eps
 
+            self._simpool[0].step()
+            newstate = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
+            f_x[:, self._simpool[0].model.nq + i] = (newstate - center) / self.x_eps
 
-        def helper(x, u):
-            self.set_state(x)
-            return self.step(u)
-
-        f_x = np.vstack([
-                    approx_fprime(state, lambda x: helper(x, action)[m], self.x_eps)
-                    for m in range(self.state_size)
-                ])
         return f_x
 
     def f_u(self, state, action):
@@ -152,34 +147,30 @@ class MujocoDynamics:
         Returns:
             f_u
         """
-        """self.set_state(state)
-        self.step(action)
-        center = self.get_state()
+
+        while len(self._simpool) < 1:
+            self._simpool.append(MjSim(self._model, nsubsteps = self._frame_skip))
+
+        self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
+        self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
+        self._simpool[0].data.ctrl[:] = self.constrain(action)
+        self._simpool[0].step()
+        center = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
         f_u = np.empty((self.state_size, self.action_size))
 
 
         for i in range(self.action_size):
-            self.sim.data.qpos[:] = state[:self.sim.model.nq]
-            self.sim.data.qvel[:] = state[self.sim.model.nq:]
+            self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
+            self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
 
             action[i] += self.u_eps
-            self.sim.data.ctrl[:] = self.constrain(action)
+            self._simpool[0].data.ctrl[:] = self.constrain(action)
 
-            self.sim.step()
-            newstate = np.concatenate([self.sim.data.qpos, self.sim.data.qvel])
-            deriv = (newstate - center) / self.u_eps
-            f_u[:, i] = deriv
+            self._simpool[0].step()
+            newstate = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
+            f_u[:, i] = (newstate - center) / self.u_eps
 
-            action[i] -= self.u_eps"""
-
-        def helper(x, u):
-            self.set_state(x)
-            return self.step(u)
-
-        f_u = np.vstack([
-                    approx_fprime(action, lambda u: helper(state, u)[m], self.u_eps)
-                    for m in range(self.state_size)
-                ])
+            action[i] -= self.u_eps
 
         return f_u
 
