@@ -18,7 +18,7 @@ import six
 import abc
 import warnings
 import numpy as np
-
+import multiprocessing as mp
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseController():
@@ -109,14 +109,21 @@ class iLQR(BaseController):
         k = self._k
         K = self._K
 
+        N = us.shape[0]
+        xs = np.empty((N + 1, self.dynamics.state_size))
+        xs[0] = x0
+        self.dynamics.set_state(x0)
+        for i in range(N):
+            xs[i+1] = self.dynamics.step(us[i])
+
         changed = True
         converged = False
         for iteration in range(n_iterations):
             accepted = False
 
-            # Forward rollout only if it needs to be recomputed.
+            # Compute derivatives only if it needs to be recomputed.
             if changed:
-                (xs, F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu) = self._forward_rollout(x0, us)
+                (F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu) = self._compute_derivs(xs, us)
                 J_opt = L.sum()
                 changed = False
 
@@ -216,7 +223,7 @@ class iLQR(BaseController):
                                                      range(self.N)))
         return sum(J) + self.cost.l(xs[-1], None, self.N, terminal=True)
 
-    def _forward_rollout(self, x0, us):
+    def _compute_derivs(self, xs, us):
         """Apply the forward dynamics to have a trajectory from the starting
         state x0 by applying the control path us.
 
@@ -251,9 +258,7 @@ class iLQR(BaseController):
         action_size = self.dynamics.action_size
         N = us.shape[0]
 
-        xs = np.empty((N + 1, state_size))
-        F_x = np.empty((N, state_size, state_size))
-        F_u = np.empty((N, state_size, action_size))
+        F_x, F_u = self.dynamics.f_derivs(xs, us)
 
         L = np.empty(N + 1)
         L_x = np.empty((N + 1, state_size))
@@ -262,15 +267,9 @@ class iLQR(BaseController):
         L_ux = np.empty((N, action_size, state_size))
         L_uu = np.empty((N, action_size, action_size))
 
-        xs[0] = x0
-        self.dynamics.set_state(x0)
         for i in range(N):
             x = xs[i]
             u = us[i]
-
-            xs[i + 1] = self.dynamics.step(u)
-            F_x[i] = self.dynamics.f_x(x, u)
-            F_u[i] = self.dynamics.f_u(x, u)
 
             L[i] = self.cost.l(x, u, i, terminal=False)
             L_x[i] = self.cost.l_x(x, u, i, terminal=False)
@@ -284,7 +283,8 @@ class iLQR(BaseController):
         L_x[-1] = self.cost.l_x(x, None, N, terminal=True)
         L_xx[-1] = self.cost.l_xx(x, None, N, terminal=True)
 
-        return xs, F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu
+
+        return F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu
 
     def _backward_pass(self,
                        F_x,

@@ -2,7 +2,8 @@ import mujoco_py
 from mujoco_py import MjSim, load_model_from_path
 import numpy as np
 from scipy.optimize import approx_fprime
-import time
+import multiprocessing as mp
+import os
 
 class MujocoDynamics:
 
@@ -14,7 +15,8 @@ class MujocoDynamics:
                  constrain = True,
                  bounds = None,
                  x_eps = 1.5e-8,
-                 u_eps = 1.5e-8):
+                 u_eps = 1.5e-8,
+                 use_multiprocessing = False):
         """Constructs an AutoDiffDynamics model.
 
         Args:
@@ -27,6 +29,7 @@ class MujocoDynamics:
                 NOTE: make sure user-defined bounds are not wider than model constraints.
             x_eps: Epsilon used for finite differencing wrt state.
             u_eps: Epsilon used for finite differencing wrt action.
+            use_multiprocessing: Whether to use multiprocessing for computing derivatives
 
         NOTE:
             state space: [qpos[:] qvel[:]] where qpos and qvel are position and velocity
@@ -47,7 +50,12 @@ class MujocoDynamics:
                 self.bounds = self.sim.model.actuator_ctrlrange
         self.x_eps = x_eps
         self.u_eps = u_eps
-        self._simpool = []
+        self.multiprocessing = use_multiprocessing
+        if self.multiprocessing:
+            self._pool = mp.Pool(initializer = MujocoDynamics._worker_init,
+                                 initargs = (model_xml_path, frame_skip, constrain, bounds, x_eps, u_eps, False))
+        else:
+            self._derivsim = MjSim(self._model, nsubsteps = self._frame_skip)
 
     @property
     def state_size(self):
@@ -63,6 +71,27 @@ class MujocoDynamics:
     def dt(self):
         """Time elapsed per step"""
         return self._model.opt.timestep * self._frame_skip
+
+
+    @staticmethod
+    def _worker_init(model_xml_path,
+                     frame_skip,
+                     constrain,
+                     bounds,
+                     x_eps,
+                     u_eps,
+                     use_multiprocessing):
+        """
+        Initializes sims for workers in multiprocessing Pool.
+        """
+        global mjdynamics
+        mjdynamics = MujocoDynamics(model_xml_path, frame_skip, constrain, bounds, x_eps, u_eps, use_multiprocessing)
+        print("Finished loading process", os.getpid())
+
+    @staticmethod
+    def _worker(state, action):
+        return (mjdynamics.f_x(state, action), mjdynamics.f_u(state, action))
+
 
     def set_state(self, state):
         """Sets state of simulator
@@ -95,8 +124,27 @@ class MujocoDynamics:
         self.sim.step()
         return self.get_state()
 
+    def f_derivs(self, xs, us):
+        """Computes dynamics derivatives.
+
+        Args:
+            xs: [N or N + 1, state_size] numpy array with state vectors
+            us: [N, action_size] numpy array with action vectors
+        Returns:
+            (f_x, f_u), where f_x and f_u are N-length lists of numpy arrays
+                of shape [state_size, state_size] and [state_size, action_size].
+        """
+        if self.multiprocessing:
+            results = self._pool.starmap(MujocoDynamics._worker, [(xs[i], us[i]) for i in range(us.shape[0])])
+            return ([result[0] for result in results], [result[1] for result in results])
+        else:
+            F_x = [self.f_x(xs[i], us[i]) for i in range(us.shape[0])]
+            F_u = [self.f_u(xs[i], us[i]) for i in range(us.shape[0])]
+        return (F_x, F_u)
+
     def f_x(self, state, action):
-        """Evaluate f_x at specified state and action by finite differencing
+        """Evaluate f_x at specified state and action by finite differencing.
+        Does not change main sim (uses simpool for simulating).
 
         Args:
             state: numpy state vector
@@ -105,41 +153,39 @@ class MujocoDynamics:
             f_x
         """
 
-        while len(self._simpool) < 1:
-            self._simpool.append(MjSim(self._model, nsubsteps = self._frame_skip))
-
-        self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
-        self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
-        self._simpool[0].data.ctrl[:] = self.constrain(action)
-        self._simpool[0].step()
-        center = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
+        self._derivsim.data.qpos[:] = state[:self._derivsim.model.nq]
+        self._derivsim.data.qvel[:] = state[self._derivsim.model.nq:]
+        self._derivsim.data.ctrl[:] = self.constrain(action)
+        self._derivsim.step()
+        center = np.concatenate([self._derivsim.data.qpos, self._derivsim.data.qvel])
         f_x = np.empty((self.state_size, self.state_size))
 
 
-        for i in range(self._simpool[0].model.nq):
-            self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
-            self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
+        for i in range(self._derivsim.model.nq):
+            self._derivsim.data.qpos[:] = state[:self._derivsim.model.nq]
+            self._derivsim.data.qvel[:] = state[self._derivsim.model.nq:]
 
-            self._simpool[0].data.qpos[i] += self.x_eps
+            self._derivsim.data.qpos[i] += self.x_eps
 
-            self._simpool[0].step()
-            newstate = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
+            self._derivsim.step()
+            newstate = np.concatenate([self._derivsim.data.qpos, self._derivsim.data.qvel])
             f_x[:, i] = (newstate - center) / self.x_eps
 
-        for i in range(self._simpool[0].model.nv):
-            self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
-            self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
+        for i in range(self._derivsim.model.nv):
+            self._derivsim.data.qpos[:] = state[:self._derivsim.model.nq]
+            self._derivsim.data.qvel[:] = state[self._derivsim.model.nq:]
 
-            self._simpool[0].data.qvel[i] += self.x_eps
+            self._derivsim.data.qvel[i] += self.x_eps
 
-            self._simpool[0].step()
-            newstate = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
-            f_x[:, self._simpool[0].model.nq + i] = (newstate - center) / self.x_eps
+            self._derivsim.step()
+            newstate = np.concatenate([self._derivsim.data.qpos, self._derivsim.data.qvel])
+            f_x[:, self._derivsim.model.nq + i] = (newstate - center) / self.x_eps
 
         return f_x
 
     def f_u(self, state, action):
-        """Evaluate f_u at specified state and action by finite differencing
+        """Evaluate f_u at specified state and action by finite differencing.
+        Does not change main sim (uses simpool for simulating).
 
         Args:
             state: numpy state vector
@@ -148,26 +194,23 @@ class MujocoDynamics:
             f_u
         """
 
-        while len(self._simpool) < 1:
-            self._simpool.append(MjSim(self._model, nsubsteps = self._frame_skip))
-
-        self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
-        self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
-        self._simpool[0].data.ctrl[:] = self.constrain(action)
-        self._simpool[0].step()
-        center = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
+        self._derivsim.data.qpos[:] = state[:self._derivsim.model.nq]
+        self._derivsim.data.qvel[:] = state[self._derivsim.model.nq:]
+        self._derivsim.data.ctrl[:] = self.constrain(action)
+        self._derivsim.step()
+        center = np.concatenate([self._derivsim.data.qpos, self._derivsim.data.qvel])
         f_u = np.empty((self.state_size, self.action_size))
 
 
         for i in range(self.action_size):
-            self._simpool[0].data.qpos[:] = state[:self._simpool[0].model.nq]
-            self._simpool[0].data.qvel[:] = state[self._simpool[0].model.nq:]
+            self._derivsim.data.qpos[:] = state[:self._derivsim.model.nq]
+            self._derivsim.data.qvel[:] = state[self._derivsim.model.nq:]
 
             action[i] += self.u_eps
-            self._simpool[0].data.ctrl[:] = self.constrain(action)
+            self._derivsim.data.ctrl[:] = self.constrain(action)
 
-            self._simpool[0].step()
-            newstate = np.concatenate([self._simpool[0].data.qpos, self._simpool[0].data.qvel])
+            self._derivsim.step()
+            newstate = np.concatenate([self._derivsim.data.qpos, self._derivsim.data.qvel])
             f_u[:, i] = (newstate - center) / self.u_eps
 
             action[i] -= self.u_eps
