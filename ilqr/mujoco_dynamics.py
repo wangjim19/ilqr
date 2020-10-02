@@ -135,7 +135,7 @@ class MujocoDynamics:
                 of shape [state_size, state_size] and [state_size, action_size].
         """
         if self.multiprocessing:
-            results = self._pool.starmap(MujocoDynamics._worker, [(xs[i], us[i]) for i in range(us.shape[0])])
+            results = self._pool.starmap(MujocoDynamics._worker, [(xs[i], us[i]) for i in range(us.shape[0])], chunksize = us.shape[0] // mp.cpu_count())
             return ([result[0] for result in results], [result[1] for result in results])
         else:
             F_x = [self.f_x(xs[i], us[i]) for i in range(us.shape[0])]
