@@ -20,6 +20,8 @@ import numpy as np
 import theano.tensor as T
 from scipy.optimize import approx_fprime
 from .autodiff import as_function, hessian_scalar, jacobian_scalar
+import multiprocessing as mp
+import os
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -591,7 +593,8 @@ class FiniteDiffCost(Cost):
                  state_size,
                  action_size,
                  x_eps=None,
-                 u_eps=None):
+                 u_eps=None,
+                 use_multiprocessing = False):
         """Constructs an FiniteDiffCost.
 
         Args:
@@ -621,7 +624,49 @@ class FiniteDiffCost(Cost):
         self._x_eps_hess = np.sqrt(self._x_eps)
         self._u_eps_hess = np.sqrt(self._u_eps)
 
+        self.multiprocessing = use_multiprocessing
+        if self.multiprocessing:
+            self._pool = mp.Pool(initializer = FiniteDiffCost._worker_init,
+                                 initargs = (l, l_terminal, state_size, action_size, x_eps, u_eps, False))
+
         super(FiniteDiffCost, self).__init__()
+
+    @staticmethod
+    def _worker_init(l,
+                     l_terminal,
+                     state_size,
+                     action_size,
+                     x_eps,
+                     u_eps,
+                     use_multiprocessing):
+        """
+        Initializes sims for workers in multiprocessing Pool.
+        """
+        global cost
+        cost = FiniteDiffCost(l, l_terminal, state_size, action_size, x_eps, u_eps, use_multiprocessing)
+        print("Finished loading process", os.getpid())
+
+    @staticmethod
+    def _worker(x, u, i):
+        return (cost.l(x, u, i), cost.l_x(x, u, i), cost.l_u(x, u, i), cost.l_xx(x, u, i), cost.l_ux(x, u, i), cost.l_uu(x, u, i))
+
+    def l_derivs(self, xs, us):
+        if self.multiprocessing:
+            results = self._pool.starmap(FiniteDiffCost._worker, [(xs[i], us[i], i) for i in range(us.shape[0])], chunksize = us.shape[0] // mp.cpu_count())
+            return ([result[0] for result in results],
+                    [result[1] for result in results],
+                    [result[2] for result in results],
+                    [result[3] for result in results],
+                    [result[4] for result in results],
+                    [result[5] for result in results])
+
+        L = [self.l(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_x = [self.l_x(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_u = [self.l_u(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_xx = [self.l_xx(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_ux = [self.l_ux(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_uu = [self.l_uu(xs[i], us[i], i) for i in range(us.shape[0])]
+        return (L, L_x, L_u, L_xx, L_ux, L_uu)
 
     def l(self, x, u, i, terminal=False):
         """Instantaneous cost function.
@@ -689,10 +734,15 @@ class FiniteDiffCost(Cost):
             d^2l/dx^2 [state_size, state_size].
         """
         eps = self._x_eps_hess
-        Q = np.vstack([
-            approx_fprime(x, lambda x: self.l_x(x, u, i, terminal)[m], eps)
-            for m in range(self._state_size)
-        ])
+
+        Q = []
+        center = self.l_x(x, u, i, terminal)
+        for j in range(self._state_size):
+            x[j] += eps
+            deriv = (self.l_x(x, u, i, terminal) - center) / eps
+            x[j] -= eps
+            Q.append(deriv)
+        Q = np.column_stack(Q)
         return Q
 
     def l_ux(self, x, u, i, terminal=False):
@@ -712,10 +762,15 @@ class FiniteDiffCost(Cost):
             return np.zeros((self._action_size, self._state_size))
 
         eps = self._x_eps_hess
-        Q = np.vstack([
-            approx_fprime(x, lambda x: self.l_u(x, u, i)[m], eps)
-            for m in range(self._action_size)
-        ])
+
+        Q = []
+        center = self.l_u(x, u, i, terminal)
+        for j in range(self._state_size):
+            x[j] += eps
+            deriv = (self.l_u(x, u, i, terminal) - center) / eps
+            x[j] -= eps
+            Q.append(deriv)
+        Q = np.column_stack(Q)
         return Q
 
     def l_uu(self, x, u, i, terminal=False):
@@ -735,10 +790,15 @@ class FiniteDiffCost(Cost):
             return np.zeros((self._action_size, self._action_size))
 
         eps = self._u_eps_hess
-        Q = np.vstack([
-            approx_fprime(u, lambda u: self.l_u(x, u, i)[m], eps)
-            for m in range(self._action_size)
-        ])
+
+        Q = []
+        center = self.l_u(x, u, i, terminal)
+        for j in range(self._action_size):
+            u[j] += eps
+            deriv = (self.l_u(x, u, i, terminal) - center) / eps
+            u[j] -= eps
+            Q.append(deriv)
+        Q = np.column_stack(Q)
         return Q
 
 
@@ -787,6 +847,15 @@ class QRCost(Cost):
         self._Q_plus_Q_T_terminal = self.Q_terminal + self.Q_terminal.T
 
         super(QRCost, self).__init__()
+
+    def l_derivs(self, xs, us):
+        L = [self.l(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_x = [self.l_x(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_u = [self.l_u(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_xx = [self.l_xx(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_ux = [self.l_ux(xs[i], us[i], i) for i in range(us.shape[0])]
+        L_uu = [self.l_uu(xs[i], us[i], i) for i in range(us.shape[0])]
+        return (L, L_x, L_u, L_xx, L_ux, L_uu)
 
     def l(self, x, u, i, terminal=False):
         """Instantaneous cost function.

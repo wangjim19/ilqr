@@ -260,28 +260,22 @@ class iLQR(BaseController):
 
         F_x, F_u = self.dynamics.f_derivs(xs, us)
 
-        L = np.empty(N + 1)
-        L_x = np.empty((N + 1, state_size))
-        L_u = np.empty((N, action_size))
-        L_xx = np.empty((N + 1, state_size, state_size))
-        L_ux = np.empty((N, action_size, state_size))
-        L_uu = np.empty((N, action_size, action_size))
+        F_x = np.stack(F_x)
+        F_u = np.stack(F_u)
 
-        for i in range(N):
-            x = xs[i]
-            u = us[i]
-
-            L[i] = self.cost.l(x, u, i, terminal=False)
-            L_x[i] = self.cost.l_x(x, u, i, terminal=False)
-            L_u[i] = self.cost.l_u(x, u, i, terminal=False)
-            L_xx[i] = self.cost.l_xx(x, u, i, terminal=False)
-            L_ux[i] = self.cost.l_ux(x, u, i, terminal=False)
-            L_uu[i] = self.cost.l_uu(x, u, i, terminal=False)
+        L, L_x, L_u, L_xx, L_ux, L_uu = self.cost.l_derivs(xs, us)
 
         x = xs[-1]
-        L[-1] = self.cost.l(x, None, N, terminal=True)
-        L_x[-1] = self.cost.l_x(x, None, N, terminal=True)
-        L_xx[-1] = self.cost.l_xx(x, None, N, terminal=True)
+        L.append(self.cost.l(x, None, N, terminal=True))
+        L_x.append(self.cost.l_x(x, None, N, terminal=True))
+        L_xx.append(self.cost.l_xx(x, None, N, terminal=True))
+
+        L = np.stack(L)
+        L_x = np.stack(L_x)
+        L_u = np.stack(L_u)
+        L_xx = np.stack(L_xx)
+        L_ux = np.stack(L_ux)
+        L_uu = np.stack(L_uu)
 
 
         return F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu
