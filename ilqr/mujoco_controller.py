@@ -464,7 +464,7 @@ class RecedingHorizonController(object):
                                           *args,
                                           **kwargs)
             self._x = xs[step_size]
-            yield xs[:step_size + 1], us[:step_size]
+            yield xs[:step_size + 1], us[:step_size], us
 
             # Set up next action path seed by simply moving along the current
             # optimal path and appending random unoptimal values at the end.
