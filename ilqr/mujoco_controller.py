@@ -469,6 +469,6 @@ class RecedingHorizonController(object):
             # Set up next action path seed by simply moving along the current
             # optimal path and appending random unoptimal values at the end.
             us_start = us[step_size:]
-            us_end = self._random.uniform(-1, 1, (step_size, action_size))
+            us_end = us[-step_size:]
             us_init = np.vstack([us_start, us_end])
             n_iterations = subsequent_n_iterations
