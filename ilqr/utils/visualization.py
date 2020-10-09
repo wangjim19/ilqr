@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 from IPython.display import HTML
 
-def make_video_fn(frames):
+def make_video_fn(frames, flip=True):
     """
         frames : np.ndarray [ n_frames x height x width x channels ]
                  or list of length n_frames
@@ -14,6 +14,11 @@ def make_video_fn(frames):
     """
     
     frames = np.array(frames)
+
+    if True:
+        ## flip frames up-down
+        ## (should probably be done for all images rendered via MuJoCo)
+        frames np.flip(frames, axis=1)
 
     ## callbacks
     
