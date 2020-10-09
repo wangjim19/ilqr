@@ -18,7 +18,7 @@ def make_video_fn(frames, flip=True):
     if True:
         ## flip frames up-down
         ## (should probably be done for all images rendered via MuJoCo)
-        frames np.flip(frames, axis=1)
+        frames = np.flip(frames, axis=1)
 
     ## callbacks
     
