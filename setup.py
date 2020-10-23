@@ -17,7 +17,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-BASE_URL = "https://github.com/anassinator/ilqr"
+BASE_URL = "https://github.com/wangjim19/ilqr"
 INSTALL_REQUIRES = [
     "numpy>=1.16.3",
     "scipy>=1.2.1",
@@ -36,8 +36,8 @@ setup(name="ilqr",
       version=version,
       description="Auto-differentiated Iterative Linear Quadratic Regulator",
       long_description=read("README.rst"),
-      author="Anass Al",
-      author_email="dev@anassinator.com",
+      author="Jim Wang",
+      author_email="wangjim19@berkeley.edu",
       license="GPLv3",
       url=BASE_URL,
       download_url="{}/tarball/{}".format(BASE_URL, version),
