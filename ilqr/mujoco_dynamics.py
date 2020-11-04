@@ -14,8 +14,8 @@ class MujocoDynamics:
                  frame_skip = 1,
                  constrain = True,
                  bounds = None,
-                 x_eps = 1.5e-8,
-                 u_eps = 1.5e-8,
+                 x_eps = 1.0e-6,
+                 u_eps = 1.0e-6,
                  use_multiprocessing = False):
         """Constructs an AutoDiffDynamics model.
 
