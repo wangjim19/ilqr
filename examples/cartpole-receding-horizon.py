@@ -10,6 +10,7 @@ from ilqr.mujoco_controller import (
 	iLQR,
 	RecedingHorizonController,
 )
+from ilqr.utils.rollouts import monitored_rollout
 from ilqr.utils.visualization import save_video
 
 
@@ -50,14 +51,17 @@ for i in range(args.n_iters):
     
 print('time', time.time() - t0)
 
-dynamics.set_state(x0)
-print(dynamics.get_state())
-video = []
-for i, u in enumerate(us):
-    print (i, u)
-    print(dynamics.step(u))
-    print('')
-    video.append(dynamics.sim.render(512, 512)[::-1])
+trajectory, video_frames = monitored_rollout(dynamics, x0, us)
 
-save_video(os.path.join(args.logpath, 'rollout.mp4'), video)
+# dynamics.set_state(x0)
+# print(dynamics.get_state())
+# video = []
+# for i, u in enumerate(us):
+#     print (i, u)
+#     print(dynamics.step(u))
+#     print('')
+#     video.append(dynamics.sim.render(512, 512)[::-1])
+
+save_video(os.path.join(args.logpath, 'rollout.mp4'), video_frames)
+pdb.set_trace()
 

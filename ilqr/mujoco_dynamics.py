@@ -230,3 +230,11 @@ class MujocoDynamics:
         diff = (self.bounds[:, 1] - self.bounds[:, 0]) / 2.0
         mean = (self.bounds[:, 1] + self.bounds[:, 0]) / 2.0
         return diff * np.tanh(action) + mean
+
+    def render(self, dim=512):
+        ## rendered img is upside-down by default
+        img = self.sim.render(dim, dim)
+        return img[::-1]
+
+
+
