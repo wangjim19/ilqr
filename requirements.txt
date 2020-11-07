@@ -1,2 +1,3 @@
 sk-video==1.1.10
 typed-argument-parser==1.6.0
+gtimer

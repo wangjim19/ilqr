@@ -1,6 +1,7 @@
 import time
 import os
 import numpy as np
+import gtimer as gt
 from tap import Tap
 import pdb
 
@@ -41,19 +42,23 @@ x0 = np.array([0.0, np.random.uniform(-np.pi, np.pi), 0.0, 0.0])
 us_init = np.random.uniform(-1, 1, (args.horizon, dynamics.action_size))
 ilqr = iLQR(dynamics, cost, args.horizon)
 mpc = RecedingHorizonController(x0, ilqr)
+gt.stamp('initialization')
 
-t0 = time.time()
+## run ilqr
 mpc_trajectory, controls = mpc.control(us_init,
 	args.path_length,
 	initial_n_iterations=args.mpc_initial_itrs,
 	subsequent_n_iterations=args.mpc_subsequent_itrs,
 	on_iteration=on_iteration)
-    
-print('time', time.time() - t0)
+gt.stamp('control')
 
+## save rollout video to disk
 video_trajectory, video_frames = monitored_rollout(dynamics, x0, controls)
-
 save_video(os.path.join(args.logpath, 'rollout.mp4'), video_frames)
+gt.stamp('video logging')
+
+## print time information
+print(gt.report())
 
 ## trajectory from rolling out resulting control sequence
 ## should match the trajectory given by the mpc solver
