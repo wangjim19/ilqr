@@ -21,6 +21,11 @@ def jacobian(f):
 def hessian(f):
     return jax.jacfwd(jax.jacrev(f))
 
+def jac_hess(f):
+    jac = jax.jacrev(f)
+    hess = jax.jacfwd(jac)
+    return jac, hess
+
 def to_np(*jax_arrays):
     onp_arrays = [
         onp.array(array)
@@ -70,8 +75,9 @@ class JaxCost:
         L_uu = L_hessian[:, state_dim:, state_dim:]
         L_ux = L_hessian[:, state_dim:, :state_dim]
 
+        out = jac_hess(cost_fn)(joined)
+        pdb.set_trace()
 
-        # return cost_fn(joined)
         return to_np(L, L_x, L_u, L_xx, L_ux, L_uu)
 
     def terminal_l_derivs(self, x):
