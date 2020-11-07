@@ -23,14 +23,13 @@ class Parser(Tap):
     horizon: int = 100
     mpc_initial_itrs: int = 500
     mpc_subsequent_itrs: int = 100
-    xmlpath: str = 'ilqr/xmls/inverted_pendulum.xml'
     logdir: str = 'logs/cartpole-receding-horizon'
 
 args = Parser().parse_args()
 
 config = load_config(args.config_path)
 
-dynamics = MujocoDynamics(args.xmlpath, frame_skip=2, use_multiprocessing=True)
+dynamics = MujocoDynamics(config.xmlpath, frame_skip=2, use_multiprocessing=True)
 print(dynamics.dt)
 
 x0 = np.array([0.0, np.random.uniform(-np.pi, np.pi), 0.0, 0.0])
