@@ -22,4 +22,6 @@ def monitored_rollout(dynamics, initial_state, controls):
 	    trajectory.append(next_state)
 	    video_frames.append(img)
 
-	return trajectory, video_frames
+	return np.stack(trajectory, axis=0), np.stack(video_frames, axis=0)
+
+

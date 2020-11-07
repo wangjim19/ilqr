@@ -19,6 +19,7 @@ import abc
 import warnings
 import numpy as np
 import multiprocessing as mp
+import pdb
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseController():
@@ -418,6 +419,7 @@ class RecedingHorizonController(object):
 
     def control(self,
                 us_init,
+                path_length,
                 step_size=1,
                 initial_n_iterations=100,
                 subsequent_n_iterations=1,
@@ -457,14 +459,19 @@ class RecedingHorizonController(object):
         """
         action_size = self._controller.dynamics.action_size
         n_iterations = initial_n_iterations
-        while True:
+
+        trajectory = [self._x.copy()]
+        controls = []
+
+        for i in range(path_length):
+
             xs, us = self._controller.fit(self._x,
                                           us_init,
                                           n_iterations=n_iterations,
                                           *args,
                                           **kwargs)
             self._x = xs[step_size]
-            yield xs[:step_size + 1], us[:step_size], us
+            # yield xs[:step_size + 1], us[:step_size], us
 
             # Set up next action path seed by simply moving along the current
             # optimal path and appending random unoptimal values at the end.
@@ -472,3 +479,9 @@ class RecedingHorizonController(object):
             us_end = us[-step_size:]
             us_init = np.vstack([us_start, us_end])
             n_iterations = subsequent_n_iterations
+
+            trajectory.append(self._x.copy())
+            controls.append(us[:step_size])
+
+        return np.stack(trajectory, axis=0), np.concatenate(controls, axis=0)
+

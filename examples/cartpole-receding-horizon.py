@@ -15,7 +15,7 @@ from ilqr.utils.visualization import save_video
 
 
 class Parser(Tap):
-    n_iters: int = 100
+    path_length: int = 100
     horizon: int = 100
     mpc_initial_itrs: int = 500
     mpc_subsequent_itrs: int = 100
@@ -43,25 +43,20 @@ ilqr = iLQR(dynamics, cost, args.horizon)
 mpc = RecedingHorizonController(x0, ilqr)
 
 t0 = time.time()
-controls = mpc.control(us_init, initial_n_iterations = args.mpc_initial_itrs, subsequent_n_iterations = args.mpc_subsequent_itrs, on_iteration = on_iteration)
-us = []
-for i in range(args.n_iters):
-    print('ITERATION', i, '\n')
-    us.append(next(controls)[1])
+mpc_trajectory, controls = mpc.control(us_init,
+	args.path_length,
+	initial_n_iterations=args.mpc_initial_itrs,
+	subsequent_n_iterations=args.mpc_subsequent_itrs,
+	on_iteration=on_iteration)
     
 print('time', time.time() - t0)
 
-trajectory, video_frames = monitored_rollout(dynamics, x0, us)
-
-# dynamics.set_state(x0)
-# print(dynamics.get_state())
-# video = []
-# for i, u in enumerate(us):
-#     print (i, u)
-#     print(dynamics.step(u))
-#     print('')
-#     video.append(dynamics.sim.render(512, 512)[::-1])
+video_trajectory, video_frames = monitored_rollout(dynamics, x0, controls)
 
 save_video(os.path.join(args.logpath, 'rollout.mp4'), video_frames)
+
+## trajectory from rolling out resulting control sequence
+## should match the trajectory given by the mpc solver
+assert (mpc_trajectory == video_trajectory).all()
 pdb.set_trace()
 
