@@ -14,7 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>
 """Iterative Linear Quadratic Regulator."""
 
-from . import autodiff, cost, dynamics
+from . import autodiff, dynamics
 from .controller import iLQR, RecedingHorizonController
 
-__all__ = ["iLQR", "RecedingHorizonController", "autodiff", "cost", "dynamics"]
+__all__ = ["iLQR", "RecedingHorizonController", "autodiff", "dynamics"]

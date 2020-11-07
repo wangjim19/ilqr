@@ -268,11 +268,13 @@ class iLQR(BaseController):
         N = us.shape[0]
 
         F_x, F_u = self.dynamics.f_derivs(xs, us)
+        gt.stamp('derivs/dyn', unique=False)
 
         F_x = np.stack(F_x)
         F_u = np.stack(F_u)
 
         L, L_x, L_u, L_xx, L_ux, L_uu = self.cost.l_derivs(xs, us)
+        gt.stamp('derivs/cost', unique=False)
 
         x = xs[-1]
         L.append(self.cost.l(x, None, N, terminal=True))
@@ -285,6 +287,7 @@ class iLQR(BaseController):
         L_xx = np.stack(L_xx)
         L_ux = np.stack(L_ux)
         L_uu = np.stack(L_uu)
+        gt.stamp('derivs/misc', unique=False)
 
 
         return F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu
@@ -471,8 +474,8 @@ class RecedingHorizonController(object):
         trajectory = [self._x.copy()]
         controls = []
 
-        # for i in range(path_length):
-        for i in gt.timed_for(range(path_length)):
+        for i in range(path_length):
+        # for i in gt.timed_for(range(path_length)):
 
             xs, us = self._controller.fit(self._x,
                                           us_init,
