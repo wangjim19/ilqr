@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
@@ -43,3 +44,32 @@ def make_video_fn(frames, flip=True):
                                    frames=n_frames, interval=50)
     
     return lambda: HTML(anim.to_html5_video())
+
+def mkdir(filename):
+    folder = os.path.dirname(filename)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+def save_video(filename, video_frames, fps=60, video_format='mp4'):
+    """
+        (very lightly) adapted from
+            https://github.com/rail-berkeley/
+            softlearning/blob/48393e5e645ff2f39d7dadb17956b6a75edee900/
+            softlearning/utils/video.py
+    """
+    assert fps == int(fps), fps
+    import skvideo.io
+    mkdir(filename)
+
+    skvideo.io.vwrite(
+        filename,
+        video_frames,
+        inputdict={
+            '-r': str(int(fps)),
+        },
+        outputdict={
+            '-f': video_format,
+            '-pix_fmt': 'yuv420p', # '-pix_fmt=yuv420p' needed for osx https://github.com/scikit-video/scikit-video/issues/74
+        }
+    )
+
