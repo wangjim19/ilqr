@@ -228,9 +228,9 @@ class iLQR(BaseController):
         Returns:
             Trajectory's total cost.
         """
-        J = map(lambda args: self.cost.l(*args), zip(xs[:-1], us,
-                                                     range(self.N)))
-        return sum(J) + self.cost.l(xs[-1], None, self.N, terminal=True)
+        L = self.cost.l(xs[:-1], us)
+        terminal_L = self.cost.terminal_l(xs[-1])
+        return L.sum() + terminal_L
 
     def _compute_derivs(self, xs, us):
         """Apply the forward dynamics to have a trajectory from the starting
@@ -276,17 +276,18 @@ class iLQR(BaseController):
         L, L_x, L_u, L_xx, L_ux, L_uu = self.cost.l_derivs(xs, us)
         gt.stamp('derivs/cost', unique=False)
 
-        x = xs[-1]
-        L.append(self.cost.l(x, None, N, terminal=True))
-        L_x.append(self.cost.l_x(x, None, N, terminal=True))
-        L_xx.append(self.cost.l_xx(x, None, N, terminal=True))
+        terminal_state = xs[-1]
+        terminal_L, terminal_L_x, terminal_L_xx = self.cost.terminal_l_derivs(terminal_state)
 
-        L = np.stack(L)
-        L_x = np.stack(L_x)
-        L_u = np.stack(L_u)
-        L_xx = np.stack(L_xx)
-        L_ux = np.stack(L_ux)
-        L_uu = np.stack(L_uu)
+        L = np.concatenate([
+            L, terminal_L[None],
+        ])
+        L_x = np.concatenate([
+            L_x, terminal_L_x[None],
+        ])
+        L_xx = np.concatenate([
+            L_xx, terminal_L_xx[None],
+        ])
         gt.stamp('derivs/misc', unique=False)
 
 
