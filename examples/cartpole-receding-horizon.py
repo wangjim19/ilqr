@@ -5,7 +5,6 @@ import gtimer as gt
 from tap import Tap
 import pdb
 
-# from ilqr.cost import FiniteDiffCost
 from ilqr.mujoco_dynamics import MujocoDynamics
 from ilqr.mujoco_controller import (
     iLQR,
@@ -34,7 +33,7 @@ print(dynamics.dt)
 
 x0 = np.array([0.0, np.random.uniform(-np.pi, np.pi), 0.0, 0.0])
 
-us_init = np.random.uniform(-1, 1, (args.horizon, dynamics.action_size))
+us_init = np.random.uniform(*config.action_bounds, (args.horizon, dynamics.action_size))
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon)
 mpc = RecedingHorizonController(x0, ilqr)
 gt.stamp('initialization')
