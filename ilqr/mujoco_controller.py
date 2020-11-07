@@ -19,6 +19,7 @@ import abc
 import warnings
 import numpy as np
 import multiprocessing as mp
+import gtimer as gt
 import pdb
 
 @six.add_metaclass(abc.ABCMeta)
@@ -99,6 +100,8 @@ class iLQR(BaseController):
                 xs: optimal state path [N+1, state_size].
                 us: optimal control path [N, action_size].
         """
+        gt.stamp('fit/pre', unique=False)
+
         # Reset regularization term.
         self._mu = 1.0
         self._delta = self._delta_0
@@ -116,6 +119,7 @@ class iLQR(BaseController):
         self.dynamics.set_state(x0)
         for i in range(N):
             xs[i+1] = self.dynamics.step(us[i])
+        gt.stamp('fit/rollout', unique=False)
 
         changed = True
         converged = False
@@ -127,15 +131,19 @@ class iLQR(BaseController):
                 (F_x, F_u, L, L_x, L_u, L_xx, L_ux, L_uu) = self._compute_derivs(xs, us)
                 J_opt = L.sum()
                 changed = False
+                gt.stamp('fit/derivs', unique=False)
 
             try:
                 # Backward pass.
                 k, K = self._backward_pass(F_x, F_u, L_x, L_u, L_xx, L_ux, L_uu)
+                gt.stamp('fit/backward', unique=False)
 
                 # Backtracking line search.
                 for alpha in alphas:
                     xs_new, us_new = self._control(xs, us, k, K, alpha)
+                    gt.stamp('fit/control', unique=False)
                     J_new = self._trajectory_cost(xs_new, us_new)
+                    gt.stamp('fit/cost', unique=False)
 
                     if J_new < J_opt:
                         if np.abs((J_opt - J_new) / J_opt) < tol:
@@ -463,7 +471,8 @@ class RecedingHorizonController(object):
         trajectory = [self._x.copy()]
         controls = []
 
-        for i in range(path_length):
+        # for i in range(path_length):
+        for i in gt.timed_for(range(path_length)):
 
             xs, us = self._controller.fit(self._x,
                                           us_init,
