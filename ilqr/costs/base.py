@@ -21,7 +21,7 @@ import theano.tensor as T
 import multiprocessing as mp
 import os
 
-from ilqr.autodiff import as_function, hessian_scalar, jacobian_scalar
+from .autodiff import as_function, hessian_scalar, jacobian_scalar
 
 
 @six.add_metaclass(abc.ABCMeta)

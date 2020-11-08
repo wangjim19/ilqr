@@ -6,7 +6,7 @@ from tap import Tap
 import pdb
 
 from ilqr.dynamics.mujoco_dynamics import MujocoDynamics
-from ilqr.mujoco_controller import (
+from ilqr.controllers.mujoco_controller import (
     iLQR,
     RecedingHorizonController,
 )

@@ -3,8 +3,8 @@ import multiprocessing as mp
 import numpy as np
 from scipy.optimize import approx_fprime
 
-from ilqr.autodiff import as_function, hessian_scalar, jacobian_scalar
 from .base import Cost
+from .autodiff import as_function, hessian_scalar, jacobian_scalar
 
 class FiniteDiffCost(Cost):
 
