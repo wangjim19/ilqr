@@ -228,7 +228,7 @@ class iLQR(BaseController):
         Returns:
             Trajectory's total cost.
         """
-        L = self.cost.l(xs[:-1], us)
+        L = self.cost.l_np(xs[:-1], us)
         terminal_L = self.cost.terminal_l(xs[-1])
         return L.sum() + terminal_L
 

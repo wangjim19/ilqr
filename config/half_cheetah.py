@@ -28,7 +28,10 @@ def jax_cost_fn():
     def terminal_cost_fn(x):
         return _state_cost(x)
 
-    def batch_cost_fn(xs, us):
+    def batch_cost_fn_np(xs, us):
+        """
+            faster than jax versions, but not able to get derivatives
+        """
         action_cost = onp.square(us).sum(axis=-1)
         vel_cost = 10 * onp.square(xs[:,9] - 4)
         steady_cost = 200 * onp.square(xs[:,10])
@@ -36,7 +39,7 @@ def jax_cost_fn():
         total_cost = action_cost + vel_cost + steady_cost
         return total_cost
 
-    cost = JaxCost(cost_fn, terminal_cost_fn, batch_cost_fn)
+    cost = JaxCost(cost_fn, terminal_cost_fn, batch_cost_fn_np)
     return cost
 
 class Config:

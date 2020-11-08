@@ -25,20 +25,20 @@ def to_np(*jax_arrays):
 
 class JaxCost:
 
-    def __init__(self, cost_fn, terminal_cost_fn, batch_cost_fn):
+    def __init__(self, cost_fn, terminal_cost_fn, batch_cost_fn_np):
         self.cost_fn = cost_fn
         self.terminal_cost_fn = terminal_cost_fn
-        self.batch_cost_fn = batch_cost_fn
+        self.batch_cost_fn_np = batch_cost_fn_np
 
-        self.vmap_cost_fn = jax.vmap(cost_fn)
-        self.vmap_jacobian_fn = jax.vmap(jacobian(cost_fn))
-        self.vmap_hessian_fn = jax.vmap(hessian(cost_fn))
+        self.vmap_cost_fn = jax.jit(jax.vmap(cost_fn))
+        self.vmap_jacobian_fn = jax.jit(jax.vmap(jacobian(cost_fn)))
+        self.vmap_hessian_fn = jax.jit(jax.vmap(hessian(cost_fn)))
 
-        self.jacobian_terminal_cost_fn = jacobian(terminal_cost_fn)
-        self.hessian_terminal_cost_fn = hessian(terminal_cost_fn)
+        self.jacobian_terminal_cost_fn = jax.jit(jacobian(terminal_cost_fn))
+        self.hessian_terminal_cost_fn = jax.jit(hessian(terminal_cost_fn))
 
-    def l(self, xs, us):
-        L = self.batch_cost_fn(xs, us)
+    def l_np(self, xs, us):
+        L = self.batch_cost_fn_np(xs, us)
         return L
 
     def terminal_l(self, x):
