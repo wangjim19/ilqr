@@ -31,7 +31,9 @@ config = load_config(args.config_path)
 dynamics = MujocoDynamics(config.xmlpath, frame_skip=2, use_multiprocessing=True)
 print(dynamics.dt)
 
-x0 = np.array([0.0, np.random.uniform(-np.pi, np.pi), 0.0, 0.0])
+## hard-code starting state for reproducibility
+# x0 = np.array([0.0, np.random.uniform(-np.pi, np.pi), 0.0, 0.0])
+x0 = np.array([0.0, -3.05, 0.0, 0.0])
 
 us_init = np.random.uniform(*config.action_bounds, (args.horizon, dynamics.action_size))
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon)
