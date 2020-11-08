@@ -23,7 +23,6 @@ def to_np(*jax_arrays):
 
 class JaxCost:
 
-
     def __init__(self, cost_fn, terminal_cost_fn):
         self.cost_fn = cost_fn
         self.terminal_cost_fn = terminal_cost_fn
