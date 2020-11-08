@@ -3,28 +3,12 @@ import jax
 import jax.numpy as jnp
 import pdb
 
-def cost_fn(xu):
-    coeffs = jnp.array([2, 10, 1, 1, 1])
-    xu_squared = xu ** 2
-    cost = jnp.dot(coeffs,  xu_squared)
-    return cost
-
-def terminal_cost_fn(x):
-    coeffs = jnp.array([2, 10, 1, 1])
-    x_squared = x ** 2
-    cost = jnp.dot(coeffs,  x_squared)
-    return cost
 
 def jacobian(f):
     return jax.jacfwd(f)
 
 def hessian(f):
     return jax.jacfwd(jax.jacrev(f))
-
-def jac_hess(f):
-    jac = jax.jacrev(f)
-    hess = jax.jacfwd(jac)
-    return jac, hess
 
 def to_np(*jax_arrays):
     onp_arrays = [
@@ -36,23 +20,28 @@ def to_np(*jax_arrays):
     else:
         return onp_arrays
 
-vmap_cost_fn = jax.vmap(cost_fn)
-vmap_jacobian_fn = jax.vmap(jacobian(cost_fn))
-vmap_hessian_fn = jax.vmap(hessian(cost_fn))
-
-jacobian_terminal_cost_fn = jacobian(terminal_cost_fn)
-hessian_terminal_cost_fn = hessian(terminal_cost_fn)
 
 class JaxCost:
 
 
+    def __init__(self, cost_fn, terminal_cost_fn):
+        self.cost_fn = cost_fn
+        self.terminal_cost_fn = terminal_cost_fn
+
+        self.vmap_cost_fn = jax.vmap(cost_fn)
+        self.vmap_jacobian_fn = jax.vmap(jacobian(cost_fn))
+        self.vmap_hessian_fn = jax.vmap(hessian(cost_fn))
+
+        self.jacobian_terminal_cost_fn = jacobian(terminal_cost_fn)
+        self.hessian_terminal_cost_fn = hessian(terminal_cost_fn)
+
     def l(self, x, u):
         joined = jnp.concatenate([x, u], axis=-1)
-        L = vmap_cost_fn(joined)
+        L = self.vmap_cost_fn(joined)
         return to_np(L)
 
     def terminal_l(self, x):
-        L = terminal_cost_fn(x)
+        L = self.terminal_cost_fn(x)
         return L.item()
 
     def l_derivs(self, xs, us):
@@ -62,15 +51,15 @@ class JaxCost:
         act_dim = us.shape[1]
 
         joined = jnp.concatenate([xs[:-1], us], axis=-1)
-        L = vmap_cost_fn(joined)
+        L = self.vmap_cost_fn(joined)
 
         ## first-order derivatives
-        L_jac = vmap_jacobian_fn(joined)
+        L_jac = self.vmap_jacobian_fn(joined)
         L_x = L_jac[:,:state_dim]
         L_u = L_jac[:,state_dim:]
 
         ## second-order derivatives
-        L_hessian = vmap_hessian_fn(joined)
+        L_hessian = self.vmap_hessian_fn(joined)
         L_xx = L_hessian[:, :state_dim, :state_dim]
         L_uu = L_hessian[:, state_dim:, state_dim:]
         L_ux = L_hessian[:, state_dim:, :state_dim]
@@ -78,8 +67,8 @@ class JaxCost:
         return to_np(L, L_x, L_u, L_xx, L_ux, L_uu)
 
     def terminal_l_derivs(self, x):
-        L = terminal_cost_fn(x)
-        L_jac = jacobian_terminal_cost_fn(x)
-        L_hessian = hessian_terminal_cost_fn(x)
+        L = self.terminal_cost_fn(x)
+        L_jac = self.jacobian_terminal_cost_fn(x)
+        L_hessian = self.hessian_terminal_cost_fn(x)
         return to_np(L, L_jac, L_hessian)
 
