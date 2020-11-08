@@ -1,3 +1,5 @@
+import pdb
+
 def finite_diff_cost_fn():
     from ilqr.costs.finite_diff import FiniteDiffCost
 
@@ -15,6 +17,7 @@ def exact_cost_fn():
     return cost
 
 def jax_cost_fn():
+    import numpy as onp
     import jax.numpy as jnp
     from ilqr.costs.jax import JaxCost
 
@@ -30,7 +33,17 @@ def jax_cost_fn():
         cost = jnp.dot(coeffs,  x_squared)
         return cost
 
-    cost = JaxCost(cost_fn, terminal_cost_fn)
+    def batch_cost_fn_np(xs, us):
+        """
+            faster than jax versions, but not able to get derivatives
+        """
+        coeffs = onp.array([2, 10, 1, 1])
+        xs_squared = onp.square(xs)
+        cost = onp.dot(xs_squared, coeffs)
+        cost += onp.square(us).sum(axis=-1)
+        return cost
+
+    cost = JaxCost(cost_fn, terminal_cost_fn, batch_cost_fn_np)
     return cost
     
 class Config:
