@@ -5,7 +5,7 @@ import gtimer as gt
 from tap import Tap
 import pdb
 
-from ilqr.mujoco_dynamics import MujocoDynamics
+from ilqr.dynamics.mujoco_dynamics import MujocoDynamics
 from ilqr.mujoco_controller import (
     iLQR,
     RecedingHorizonController,
@@ -59,5 +59,5 @@ print(gt.report())
 ## trajectory from rolling out resulting control sequence
 ## should match the trajectory given by the mpc solver
 assert (mpc_trajectory == video_trajectory).all()
-pdb.set_trace()
+
 
