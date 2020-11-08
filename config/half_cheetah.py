@@ -4,6 +4,7 @@ STATE_DIM = 18
 ACT_DIM = 6
 
 def jax_cost_fn():
+    import numpy as onp
     import jax.numpy as jnp
     from ilqr.costs.jax import JaxCost
 
@@ -27,7 +28,15 @@ def jax_cost_fn():
     def terminal_cost_fn(x):
         return _state_cost(x)
 
-    cost = JaxCost(cost_fn, terminal_cost_fn)
+    def batch_cost_fn(xs, us):
+        action_cost = onp.square(us).sum(axis=-1)
+        vel_cost = 10 * onp.square(xs[:,9] - 4)
+        steady_cost = 200 * onp.square(xs[:,10])
+
+        total_cost = action_cost + vel_cost + steady_cost
+        return total_cost
+
+    cost = JaxCost(cost_fn, terminal_cost_fn, batch_cost_fn)
     return cost
 
 class Config:

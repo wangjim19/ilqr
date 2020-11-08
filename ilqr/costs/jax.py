@@ -3,6 +3,8 @@ import jax
 import jax.numpy as jnp
 import pdb
 
+import gtimer as gt
+
 
 def jacobian(f):
     return jax.jacfwd(f)
@@ -23,9 +25,10 @@ def to_np(*jax_arrays):
 
 class JaxCost:
 
-    def __init__(self, cost_fn, terminal_cost_fn):
+    def __init__(self, cost_fn, terminal_cost_fn, batch_cost_fn):
         self.cost_fn = cost_fn
         self.terminal_cost_fn = terminal_cost_fn
+        self.batch_cost_fn = batch_cost_fn
 
         self.vmap_cost_fn = jax.vmap(cost_fn)
         self.vmap_jacobian_fn = jax.vmap(jacobian(cost_fn))
@@ -34,10 +37,9 @@ class JaxCost:
         self.jacobian_terminal_cost_fn = jacobian(terminal_cost_fn)
         self.hessian_terminal_cost_fn = hessian(terminal_cost_fn)
 
-    def l(self, x, u):
-        joined = jnp.concatenate([x, u], axis=-1)
-        L = self.vmap_cost_fn(joined)
-        return to_np(L)
+    def l(self, xs, us):
+        L = self.batch_cost_fn(xs, us)
+        return L
 
     def terminal_l(self, x):
         L = self.terminal_cost_fn(x)
