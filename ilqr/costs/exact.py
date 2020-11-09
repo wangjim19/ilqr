@@ -8,44 +8,44 @@ class ExactCost(Cost):
 
     def __init__(self,
                  l,
-                 l_terminal,
-                 state_size,
-                 action_size,
-                 x_eps=None,
-                 u_eps=None,
+                 l_x,
+                 l_u,
+                 l_xx,
+                 l_ux,
+                 l_uu,
                  use_multiprocessing = False):
-        
-        self._l = l
-        self._l_terminal = l_terminal
-        self._state_size = state_size
-        self._action_size = action_size
+        """
+        Args:
+            see unimplemented methods below.
+        """
+        self.l = l
+        self.l_x = l_x
+        self.l_u = l_u
+        self.l_xx = l_xx
+        self.l_ux = l_ux
+        self.l_uu = l_uu
 
-        self._x_eps = x_eps if x_eps else np.sqrt(np.finfo(float).eps)
-        self._u_eps = u_eps if x_eps else np.sqrt(np.finfo(float).eps)
-
-        self._x_eps_hess = np.sqrt(self._x_eps)
-        self._u_eps_hess = np.sqrt(self._u_eps)
 
         self.multiprocessing = use_multiprocessing
         if self.multiprocessing:
             self._pool = mp.Pool(initializer = ExactCost._worker_init,
-                                 initargs = (l, l_terminal, state_size, action_size, x_eps, u_eps, False))
+                                 initargs = (l, l_x, l_u, l_xx, l_ux, l_uu, False))
 
         super(ExactCost, self).__init__()
 
     @staticmethod
     def _worker_init(l,
-                     l_terminal,
-                     state_size,
-                     action_size,
-                     x_eps,
-                     u_eps,
+                     l_x,
+                     l_u,
+                     l_xx,
+                     l_ux,
+                     l_uu,
                      use_multiprocessing):
         """
         Initializes sims for workers in multiprocessing Pool.
         """
         global cost
-        cost = ExactCost(l, l_terminal, state_size, action_size, x_eps, u_eps, use_multiprocessing)
+        cost = ExactCost(l, l_x, l_u, l_xx, l_ux, l_uu, use_multiprocessing)
         print("Finished loading process", os.getpid())
 
     @staticmethod
@@ -71,7 +71,7 @@ class ExactCost(Cost):
         return (L, L_x, L_u, L_xx, L_ux, L_uu)
 
     def l(self, x, u, i, terminal=False):
-        """Instantaneous cost function.
+        """ Must be implemented by user.
 
         Args:
             x: Current state [state_size].
@@ -82,30 +82,75 @@ class ExactCost(Cost):
         Returns:
             Instantaneous cost (scalar).
         """
-        if terminal:
-            return self._l_terminal(x, i)
+        raise NotImplementedError
 
-        return self._l(x, u, i)
 
-    
     def l_x(self, x, u, i, terminal=False):
-        if terminal:
-            return np.array([4, 20, 2, 2]) * x
-        return np.array([4, 20, 2, 2]) * x
-    def l_u(self, x, u, i, terminal = False):
-        if terminal:
-            return np.zeros(1)
-        return np.array([2]) * u
+        """ Must be implemented by user.
+
+        Args:
+            x: state [state_size]
+            u: control [action_size]
+            i: timestep
+            terminal: True for terminal cost
+
+        Returns:
+            l_x at x, u [state_size]
+        """
+        raise NotImplementedError
+
+    def l_u(self, x, u, i, terminal=False):
+        """ Must be implemented by user.
+
+        Args:
+            x: state [state_size]
+            u: control [action_size]
+            i: timestep
+            terminal: True for terminal cost
+
+        Returns:
+            l_u at x, u [action_size]
+        """
+        raise NotImplementedError
+
     def l_xx(self, x, u, i, terminal=False):
-        deriv = np.zeros((4, 4))
-        deriv[0][0] = 4
-        deriv[1][1] = 20
-        deriv[2][2] = 2
-        deriv[3][3] = 2
-        return deriv
+        """ Must be implemented by user.
+
+        Args:
+            x: state [state_size]
+            u: control [action_size]
+            i: timestep
+            terminal: True for terminal cost
+
+        Returns:
+            l_xx at x, u [state_size, state_size]
+        """
+        raise NotImplementedError
+
     def l_ux(self, x, u, i, terminal=False):
-        return np.zeros((1, 4))
+        """ Must be implemented by user.
+
+        Args:
+            x: state [state_size]
+            u: control [action_size]
+            i: timestep
+            terminal: True for terminal cost
+
+        Returns:
+            l_u at x, u [action_size, state_size]
+        """
+        raise NotImplementedError
+
     def l_uu(self, x, u, i, terminal=False):
-        if terminal:
-            return np.zeros((1, 1))
-        return np.array([[2]])
+        """ Must be implemented by user.
+
+        Args:
+            x: state [state_size]
+            u: control [action_size]
+            i: timestep
+            terminal: True for terminal cost
+
+        Returns:
+            l_u at x, u [action_size, action_size]
+        """
+        raise NotImplementedError
