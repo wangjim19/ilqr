@@ -21,7 +21,7 @@ deriv_obj_vel = MjDerivative(model, dmain, ["qacc"], ["qvel"], nwarmup = 1, nite
 
 def mjderiv_f_x(state, action):
     dynamics.set_state(state)
-    data.ctrl[:] = action
+    dmain.ctrl[:] = action
     #check if data remains same after deriv compute
     deriv_pos = deriv_obj_pos.compute()
     deriv_vel = deriv_obj_vel.compute()
@@ -29,27 +29,27 @@ def mjderiv_f_x(state, action):
     dqacc_dqvel = deriv_vel[0][0]
 
     f_x = np.eye(dynamics.state_size)
-    f_x[:dynamics3.state_size//2, :dynamics3.state_size//2] += 0.5 * (dynamics3.dt ** 2) * dqacc_dqpos
-    f_x[:dynamics3.state_size//2, dynamics3.state_size//2:] += np.eye(dynamics3.state_size // 2) * dynamics3.dt
-    f_x[:dynamics3.state_size//2, dynamics3.state_size//2:] += 0.5 * (dynamics3.dt ** 2) * dqacc_dqvel
+    f_x[:dynamics.state_size//2, :dynamics.state_size//2] += 0.5 * (dynamics.dt ** 2) * dqacc_dqpos
+    f_x[:dynamics.state_size//2, dynamics.state_size//2:] += np.eye(dynamics.state_size // 2) * dynamics.dt
+    f_x[:dynamics.state_size//2, dynamics.state_size//2:] += 0.5 * (dynamics.dt ** 2) * dqacc_dqvel
 
-    f_x[dynamics3.state_size//2:, :dynamics3.state_size//2] += dynamics3.dt * dqacc_dqpos
-    f_x[dynamics3.state_size//2:, dynamics3.state_size//2:] += dynamics3.dt * dqacc_dqvel
+    f_x[dynamics.state_size//2:, :dynamics.state_size//2] += dynamics.dt * dqacc_dqpos
+    f_x[dynamics.state_size//2:, dynamics.state_size//2:] += dynamics.dt * dqacc_dqvel
 
     return f_x
-
+def run_finitediff():
+    for i in range(100):
+        dynamics.f_x(np.zeros(dynamics.state_size), np.zeros(dynamics.action_size))
+def run_mjderiv():
+    for i in range(100):
+        mjderiv_f_x(np.zeros(dynamics.state_size), np.zeros(dynamics.action_size))
 class DerivTest(unittest.TestCase):
     def test_speed(self):
-        def run_finitediff():
-            for i in range(100):
-                dynamics.f_x(np.zeros(dynamics.state_size), np.zeros(dynamics.action_size))
-        def run_mjderiv():
-            for i in range(100):
-                mjderiv_f_x(np.zeros(dynamics.state_size), np.zeros(dynamics.action_size))
+        
         print('FINITE DIFF RESULTS\n\n')
-        cProfile.run('run_finitediff')
+        cProfile.run('run_finitediff()')
         print('\n\n\nMJ-PY-DERIV RESULTS\n\n')
-        cProfile.run('run_mjderiv')
+        cProfile.run('run_mjderiv()')
         print('\n\n\n')
 
     def test_accuracy(self):
