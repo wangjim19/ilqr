@@ -37,6 +37,7 @@ class MujocoDynamics:
             action space: In order of actuator definition in model.
         """
 
+        self._xml_path = model_xml_path
         self._model = load_model_from_path(model_xml_path)
         self._frame_skip = frame_skip
         self.sim = MjSim(self._model, nsubsteps = self._frame_skip)
@@ -235,6 +236,3 @@ class MujocoDynamics:
         ## rendered img is upside-down by default
         img = self.sim.render(dim, dim)
         return img[::-1]
-
-
-

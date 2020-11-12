@@ -22,6 +22,7 @@ import multiprocessing as mp
 import gtimer as gt
 import pdb
 import os
+from ilqr.mujoco_dynamics import MujocoDynamics
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseController():
@@ -74,7 +75,7 @@ class iLQR(BaseController):
 
         self._k = np.zeros((N, dynamics.action_size))
         self._K = np.zeros((N, dynamics.action_size, dynamics.state_size))
-	
+
         self.multiprocessing = multiprocessing
 
         if multiprocessing:
@@ -89,6 +90,8 @@ class iLQR(BaseController):
         Initializes sims for workers in multiprocessing Pool.
         """
         global ilqr_obj
+        dynamics = MujocoDynamics(dynamics._xml_path, dynamics._frame_skip, dynamics.constrained,
+                    dynamics.bounds, dynamics.x_eps, dynamics.u_eps, False)
         ilqr_obj = iLQR(dynamics, cost, N, max_reg, use_multiprocessing)
         print("Finished loading process", os.getpid())
 
@@ -96,6 +99,7 @@ class iLQR(BaseController):
     def _worker(xs, us, k, K, alpha):
         xs_new, us_new = ilqr_obj._control(xs, us, k, K, alpha)
         J_new = ilqr_obj._trajectory_cost(xs_new, us_new)
+
         return (J_new, xs_new, us_new)
 
     def fit(self, x0, us_init, n_iterations=100, tol=1e-6, on_iteration=None):
@@ -165,34 +169,33 @@ class iLQR(BaseController):
                 if self.multiprocessing:
                     results = self._pool.starmap(iLQR._worker, [(xs, us, k, K, alpha) for alpha in alphas])
 
-                else:
-                    for i, alpha in enumerate(alphas):
-                        if self.multiprocessing:
-                            J_new, xs_new, us_new = results[i]
-                        else:
-                            xs_new, us_new = self._control(xs, us, k, K, alpha)
-                            gt.stamp('fit/control', unique=False)
-                            J_new = self._trajectory_cost(xs_new, us_new)
-                            gt.stamp('fit/cost', unique=False)
+                for i, alpha in enumerate(alphas):
+                    if self.multiprocessing:
+                        J_new, xs_new, us_new = results[i]
+                    else:
+                        xs_new, us_new = self._control(xs, us, k, K, alpha)
+                        gt.stamp('fit/control', unique=False)
+                        J_new = self._trajectory_cost(xs_new, us_new)
+                        gt.stamp('fit/cost', unique=False)
 
-                        if J_new < J_opt:
-                            if np.abs((J_opt - J_new) / J_opt) < tol:
-                                converged = True
+                    if J_new < J_opt:
+                        if np.abs((J_opt - J_new) / J_opt) < tol:
+                            converged = True
 
-                            J_opt = J_new
-                            xs = xs_new
-                            us = us_new
-                            changed = True
+                        J_opt = J_new
+                        xs = xs_new
+                        us = us_new
+                        changed = True
 
-                            # Decrease regularization term.
-                            self._delta = min(1.0, self._delta) / self._delta_0
-                            self._mu *= self._delta
-                            if self._mu <= self._mu_min:
-                                self._mu = 0.0
+                        # Decrease regularization term.
+                        self._delta = min(1.0, self._delta) / self._delta_0
+                        self._mu *= self._delta
+                        if self._mu <= self._mu_min:
+                            self._mu = 0.0
 
-                            # Accept this.
-                            accepted = True
-                            break
+                        # Accept this.
+                        accepted = True
+                        break
             except np.linalg.LinAlgError as e:
                 # Quu was not positive-definite and this diverged.
                 # Try again with a higher regularization term.
