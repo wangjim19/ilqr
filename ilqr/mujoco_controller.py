@@ -48,7 +48,7 @@ class iLQR(BaseController):
 
     """Finite Horizon Iterative Linear Quadratic Regulator."""
 
-    def __init__(self, dynamics, cost, N, max_reg=1e10):
+    def __init__(self, dynamics, cost, N, max_reg=1e10, multiprocessing = False):
         """Constructs an iLQR solver.
 
         Args:
@@ -57,6 +57,7 @@ class iLQR(BaseController):
             N: Horizon length.
             max_reg: Maximum regularization term to break early due to
                 divergence. This can be disabled by setting it to None.
+            multiprocessing: Whether to parallelize backtracking line search.
         """
         self.dynamics = dynamics
         self.cost = cost
@@ -73,7 +74,26 @@ class iLQR(BaseController):
         self._k = np.zeros((N, dynamics.action_size))
         self._K = np.zeros((N, dynamics.action_size, dynamics.state_size))
 
+        if multiprocessing:
+            self._pool = mp.Pool(initializer = iLQR._worker_init,
+                                 initargs = (dynamics, cost, N, max_reg, False))
+
         super(iLQR, self).__init__()
+
+    @staticmethod
+    def _worker_init(dynamics, cost, N, max_reg, use_multiprocessing):
+        """
+        Initializes sims for workers in multiprocessing Pool.
+        """
+        global ilqr_obj
+        ilqr_obj = iLQR(dynamics, cost, N, max_reg, use_multiprocessing)
+        print("Finished loading process", os.getpid())
+
+    @staticmethod
+    def _worker(xs, us, k, K, alpha):
+        xs_new, us_new = ilqr_obj._control(xs, us, k, K, alpha)
+        J_new = self._trajectory_cost(xs_new, us_new)
+        return (J_new, xs_new, us_new)
 
     def fit(self, x0, us_init, n_iterations=100, tol=1e-6, on_iteration=None):
         """Computes the optimal controls.
@@ -139,30 +159,37 @@ class iLQR(BaseController):
                 gt.stamp('fit/backward', unique=False)
 
                 # Backtracking line search.
-                for alpha in alphas:
-                    xs_new, us_new = self._control(xs, us, k, K, alpha)
-                    gt.stamp('fit/control', unique=False)
-                    J_new = self._trajectory_cost(xs_new, us_new)
-                    gt.stamp('fit/cost', unique=False)
+                if self.multiprocessing:
+                    results = self._pool.starmap(iLQR._worker, [(xs, us, k, K, alpha) for alpha in alphas])
 
-                    if J_new < J_opt:
-                        if np.abs((J_opt - J_new) / J_opt) < tol:
-                            converged = True
+                else:
+                    for i, alpha in enumerate(alphas):
+                        if self.multiprocessing:
+                            J_new, xs_new, us_new = results[i]
+                        else:
+                            xs_new, us_new = self._control(xs, us, k, K, alpha)
+                            gt.stamp('fit/control', unique=False)
+                            J_new = self._trajectory_cost(xs_new, us_new)
+                            gt.stamp('fit/cost', unique=False)
 
-                        J_opt = J_new
-                        xs = xs_new
-                        us = us_new
-                        changed = True
+                        if J_new < J_opt:
+                            if np.abs((J_opt - J_new) / J_opt) < tol:
+                                converged = True
 
-                        # Decrease regularization term.
-                        self._delta = min(1.0, self._delta) / self._delta_0
-                        self._mu *= self._delta
-                        if self._mu <= self._mu_min:
-                            self._mu = 0.0
+                            J_opt = J_new
+                            xs = xs_new
+                            us = us_new
+                            changed = True
 
-                        # Accept this.
-                        accepted = True
-                        break
+                            # Decrease regularization term.
+                            self._delta = min(1.0, self._delta) / self._delta_0
+                            self._mu *= self._delta
+                            if self._mu <= self._mu_min:
+                                self._mu = 0.0
+
+                            # Accept this.
+                            accepted = True
+                            break
             except np.linalg.LinAlgError as e:
                 # Quu was not positive-definite and this diverged.
                 # Try again with a higher regularization term.
@@ -496,4 +523,3 @@ class RecedingHorizonController(object):
             controls.append(us[:step_size])
 
         return np.stack(trajectory, axis=0), np.concatenate(controls, axis=0)
-
