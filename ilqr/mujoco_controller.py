@@ -21,6 +21,7 @@ import numpy as np
 import multiprocessing as mp
 import gtimer as gt
 import pdb
+import os
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseController():
@@ -73,6 +74,8 @@ class iLQR(BaseController):
 
         self._k = np.zeros((N, dynamics.action_size))
         self._K = np.zeros((N, dynamics.action_size, dynamics.state_size))
+	
+        self.multiprocessing = multiprocessing
 
         if multiprocessing:
             self._pool = mp.Pool(initializer = iLQR._worker_init,
@@ -92,7 +95,7 @@ class iLQR(BaseController):
     @staticmethod
     def _worker(xs, us, k, K, alpha):
         xs_new, us_new = ilqr_obj._control(xs, us, k, K, alpha)
-        J_new = self._trajectory_cost(xs_new, us_new)
+        J_new = ilqr_obj._trajectory_cost(xs_new, us_new)
         return (J_new, xs_new, us_new)
 
     def fit(self, x0, us_init, n_iterations=100, tol=1e-6, on_iteration=None):
