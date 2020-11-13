@@ -40,7 +40,6 @@ mpc = RecedingHorizonController(x0, ilqr)
 gt.stamp('initialization')
 
 ## run ilqr
-print('running ilqr')
 mpc_trajectory, controls = mpc.control(us_init,
     args.path_length,
     initial_n_iterations=args.mpc_initial_itrs,
