@@ -31,6 +31,7 @@ dynamics = MujocoDynamics(config.xmlpath, frame_skip=1, use_multiprocessing=True
 
 x0 = dynamics.get_state()
 
+us_init = np.random.uniform(-1, 1, (args.horizon, dynamics.action_size))
 ilqr_no_mp = iLQR(dynamics, config.cost_fn, args.horizon)
 ilqr_mp = iLQR(dynamics, config.cost_fn, args.horizon, multiprocessing = True)
 mpc_no_mp = RecedingHorizonController(x0, ilqr_no_mp)

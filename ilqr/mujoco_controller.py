@@ -194,7 +194,7 @@ class iLQR(BaseController):
                         # Accept this.
                         accepted = True
                         break
-                gt.stamp('fit/bls')
+                gt.stamp('fit/bls', unique=False)
             except np.linalg.LinAlgError as e:
                 # Quu was not positive-definite and this diverged.
                 # Try again with a higher regularization term.
