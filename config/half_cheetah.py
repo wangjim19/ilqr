@@ -14,23 +14,23 @@ def l_exact(x, u, i, terminal=False):
         if terminal:
             return l(x, np.array([0, 0, 0, 0, 0, 0]), i)
         return l(x, u, i)
-def l_x(self, x, u, i, terminal=False):
+def l_x(x, u, i, terminal=False):
         deriv = np.zeros(18)
         deriv[9] = 20 * (x[9] - 4)
         deriv[10] = 400 * x[10]
         return deriv
-def l_u(self, x, u, i, terminal = False):
+def l_u(x, u, i, terminal = False):
         if terminal:
             return np.zeros(6)
         return 2 * u
-def l_xx(self, x, u, i, terminal=False):
+def l_xx(x, u, i, terminal=False):
         deriv = np.zeros((18, 18))
         deriv[9][9] = 20
         deriv[10][10] = 400
         return deriv
-def l_ux(self, x, u, i, terminal=False):
+def l_ux(x, u, i, terminal=False):
     return np.zeros((6, 18))
-def l_uu(self, x, u, i, terminal=False):
+def l_uu(x, u, i, terminal=False):
     if terminal:
         return np.zeros((6, 6))
     return 2 * np.eye(6)

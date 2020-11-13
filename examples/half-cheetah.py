@@ -13,7 +13,7 @@ from ilqr.mujoco_controller import (
 from ilqr.utils.config import load_config
 from ilqr.utils.rollouts import monitored_rollout
 from ilqr.utils.visualization import save_video
-from ilqr.utils.logging import verbose_iteration_callback
+from ilqr.utils.logging import verbose_iteration_callback, cost_only_callback
 
 
 class Parser(Tap):
@@ -34,7 +34,7 @@ print(dynamics.dt)
 # x0 = np.array([0.0, np.random.uniform(-np.pi, np.pi), 0.0, 0.0])
 x0 = dynamics.get_state()
 
-us_init = np.random.uniform([-1,1], (args.horizon, dynamics.action_size))
+us_init = np.random.uniform(-1,1, (args.horizon, dynamics.action_size))
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon, multiprocessing = True)
 mpc = RecedingHorizonController(x0, ilqr)
 gt.stamp('initialization')
@@ -44,7 +44,7 @@ mpc_trajectory, controls = mpc.control(us_init,
     args.path_length,
     initial_n_iterations=args.mpc_initial_itrs,
     subsequent_n_iterations=args.mpc_subsequent_itrs,
-    on_iteration=verbose_iteration_callback)
+    on_iteration=cost_only_callback)
 gt.stamp('control')
 
 ## save rollout video to disk

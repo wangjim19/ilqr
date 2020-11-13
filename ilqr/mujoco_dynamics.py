@@ -91,7 +91,6 @@ class MujocoDynamics:
 
     @staticmethod
     def _worker(state, action):
-        print("hi")
         return (mjdynamics.f_x(state, action), mjdynamics.f_u(state, action))
 
 
