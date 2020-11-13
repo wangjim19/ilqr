@@ -33,6 +33,7 @@ print(dynamics.dt)
 ## hard-code starting state for reproducibility
 x0 = dynamics.get_state()
 
+np.random.seed(125)
 us_init = np.random.uniform(-1,1, (args.horizon, dynamics.action_size))
 print(us_init)
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon, multiprocessing = True)
