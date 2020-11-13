@@ -17,30 +17,30 @@ from ilqr.utils.logging import verbose_iteration_callback
 
 
 class Parser(Tap):
-    config_path: str = 'config.cartpole'
+    config_path: str = 'config.half_cheetah'
     path_length: int = 100
     horizon: int = 100
     mpc_initial_itrs: int = 500
     mpc_subsequent_itrs: int = 100
-    logdir: str = 'logs/cartpole-receding-horizon'
+    logdir: str = 'logs/half-cheetah'
 
 args = Parser().parse_args()
 
 config = load_config(args.config_path)
-
-dynamics = MujocoDynamics(config.xmlpath, frame_skip=2, use_multiprocessing=True)
+dynamics = MujocoDynamics(config.xmlpath, frame_skip=1, use_multiprocessing=True)
 print(dynamics.dt)
 
 ## hard-code starting state for reproducibility
 # x0 = np.array([0.0, np.random.uniform(-np.pi, np.pi), 0.0, 0.0])
-x0 = np.array([0.0, -3.05, 0.0, 0.0])
+x0 = dynamics.get_state()
 
-us_init = np.random.uniform(*config.action_bounds, (args.horizon, dynamics.action_size))
+us_init = np.random.uniform([-1,1], (args.horizon, dynamics.action_size))
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon, multiprocessing = True)
 mpc = RecedingHorizonController(x0, ilqr)
 gt.stamp('initialization')
 
 ## run ilqr
+print('running ilqr')
 mpc_trajectory, controls = mpc.control(us_init,
     args.path_length,
     initial_n_iterations=args.mpc_initial_itrs,
