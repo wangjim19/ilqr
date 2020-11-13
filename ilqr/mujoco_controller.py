@@ -174,9 +174,7 @@ class iLQR(BaseController):
                         J_new, xs_new, us_new = results[i]
                     else:
                         xs_new, us_new = self._control(xs, us, k, K, alpha)
-                        gt.stamp('fit/control', unique=False)
                         J_new = self._trajectory_cost(xs_new, us_new)
-                        gt.stamp('fit/cost', unique=False)
 
                     if J_new < J_opt:
                         if np.abs((J_opt - J_new) / J_opt) < tol:
@@ -196,6 +194,7 @@ class iLQR(BaseController):
                         # Accept this.
                         accepted = True
                         break
+                gt.stamp('fit/bls')
             except np.linalg.LinAlgError as e:
                 # Quu was not positive-definite and this diverged.
                 # Try again with a higher regularization term.
