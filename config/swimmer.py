@@ -4,7 +4,7 @@ import numpy as np
 
 def l(x, u, i):
     action_cost = np.square(u).sum()
-    vel_cost = 100 * ((x[5] - 10) ** 2)
+    vel_cost = 100 * ((x[5] - 3) ** 2)
     return action_cost + vel_cost
 
 
@@ -14,7 +14,7 @@ def l_exact(x, u, i, terminal=False):
         return l(x, u, i)
 def l_x(x, u, i, terminal=False):
         deriv = np.zeros(10)
-        deriv[5] = 200 * (x[5] - 10)
+        deriv[5] = 200 * (x[5] - 3)
         return deriv
 def l_u(x, u, i, terminal = False):
         if terminal:

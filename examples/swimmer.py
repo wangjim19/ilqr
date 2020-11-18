@@ -27,12 +27,12 @@ class Parser(Tap):
 args = Parser().parse_args()
 
 config = load_config(args.config_path)
-dynamics = MujocoDynamics(config.xmlpath, frame_skip=1, use_multiprocessing=True)
+dynamics = MujocoDynamics(config.xmlpath, frame_skip=4, use_multiprocessing=True)
 
 ## hard-code starting state for reproducibility
 x0 = dynamics.get_state()
 
-us_init = np.random.uniform(-1,1, (args.horizon, dynamics.action_size))
+us_init = np.zeros((args.horizon, dynamics.action_size))
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon, multiprocessing = True)
 mpc = RecedingHorizonController(x0, ilqr)
 gt.stamp('initialization')
