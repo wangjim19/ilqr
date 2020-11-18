@@ -18,10 +18,10 @@ from ilqr.utils.logging import verbose_iteration_callback, cost_only_callback
 
 class Parser(Tap):
     config_path: str = 'config.half_cheetah'
-    path_length: int = 5
-    horizon: int = 100
+    path_length: int = 100
+    horizon: int = 200
     mpc_initial_itrs: int = 500
-    mpc_subsequent_itrs: int = 100
+    mpc_subsequent_itrs: int = 200
     logdir: str = 'logs/half-cheetah'
 
 args = Parser().parse_args()
@@ -44,6 +44,7 @@ gt.stamp('initialization')
 time0 = time.time()
 mpc_trajectory, controls = mpc.control(us_init,
     args.path_length,
+    step_size=2,
     initial_n_iterations=args.mpc_initial_itrs,
     subsequent_n_iterations=args.mpc_subsequent_itrs,
     on_iteration=cost_only_callback)
