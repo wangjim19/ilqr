@@ -102,7 +102,7 @@ class iLQR(BaseController):
 
         return (J_new, xs_new, us_new)
 
-    def fit(self, x0, us_init, n_iterations=100, tol=1e-6, on_iteration=None):
+    def fit(self, x0, us_init, n_iterations=100, tol=1e-6, on_iteration=None, rollout_history = None):
         """Computes the optimal controls.
 
         Args:
@@ -209,7 +209,7 @@ class iLQR(BaseController):
                     break
 
             if on_iteration:
-                on_iteration(iteration, xs, us, J_opt, accepted, converged)
+                on_iteration(iteration, xs, us, J_opt, accepted, converged, rollout_history = rollout_history)
 
             if converged:
                 break
