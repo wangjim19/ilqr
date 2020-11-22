@@ -22,6 +22,7 @@ class Parser(Tap):
     mpc_initial_itrs: int = 500
     mpc_subsequent_itrs: int = 100
     logdir: str = 'logs/cartpole-receding-horizon'
+    num_collection_iterations = 10
 
 args = Parser().parse_args()
 
@@ -32,19 +33,21 @@ print(dynamics.dt)
 
 x0 = np.array([np.random.uniform(-1.0, 1.0), np.random.uniform(-np.pi, np.pi), np.random.uniform(-1.0, 1.0), np.random.uniform(-1.0, 1.0)])
 
-us_init = np.random.uniform(*config.action_bounds, (args.horizon, dynamics.action_size))
+
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon, multiprocessing = True)
 mpc = RecedingHorizonController(x0, ilqr)
 gt.stamp('initialization')
 
 rollout_history = {}
 ## run ilqr
-mpc_trajectory, controls = mpc.control(us_init,
-    args.path_length,
-    initial_n_iterations=args.mpc_initial_itrs,
-    subsequent_n_iterations=args.mpc_subsequent_itrs,
-    on_iteration=verbose_iteration_callback,
-    rollout_history = rollout_history)
+for i in range(args.num_collection_iterations):
+    us_init = np.random.uniform(*config.action_bounds, (args.horizon, dynamics.action_size))
+    mpc_trajectory, controls = mpc.control(us_init,
+        args.path_length,
+        initial_n_iterations=args.mpc_initial_itrs,
+        subsequent_n_iterations=args.mpc_subsequent_itrs,
+        on_iteration=verbose_iteration_callback,
+        rollout_history = rollout_history)
 gt.stamp('control')
 
 ## save rollout history to file
@@ -52,7 +55,6 @@ print("\n\nobservations shape:", rollout_history["observations"].shape)
 print("actions shape:", rollout_history["actions"].shape)
 print("next_observations shape:", rollout_history["next_observations"].shape)
 print('\n\n')
-print(rollout_history["observations"][5])
 with open('data-collection/data/cartpole/observations.txt', 'a') as f:
     np.savetxt(f, rollout_history["observations"])
 with open('data-collection/data/cartpole/actions.txt', 'a') as f:
@@ -70,7 +72,6 @@ print("\n\nobservations shape:", observations.shape)
 print("actions shape:", actions.shape)
 print("next_observations shape:", next_observations.shape)
 print('\n\n')
-print(observations[5])
 
 ## print time information
 print(gt.report())
