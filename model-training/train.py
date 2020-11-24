@@ -31,19 +31,32 @@ state_size = 4
 action_size = 1
 
 with open('data-collection/data/cartpole/observations.txt', 'r') as f:
-    observations = np.loadtxt(f)
+    observations = np.loadtxt(f).reshape(-1, state_size)
 with open('data-collection/data/cartpole/actions.txt', 'r') as f:
-    actions = np.loadtxt(f)
+    actions = np.loadtxt(f).reshape(-1, action_size)
 with open('data-collection/data/cartpole/next_observations.txt', 'r') as f:
-    next_observations = np.loadtxt(f)
+    next_observations = np.loadtxt(f).reshape(-1, state_size)
 
-inputs = torch.from_numpy(np.hstack((observations.view().reshape((-1, state_size)), actions.view().reshape((-1, action_size))))).float()
-labels = torch.from_numpy(next_observations.view().reshape(-1, state_size)).float()
+observation_mean = np.mean(observations, axis=0)
+action_mean = np.mean(actions, axis=0)
+
+observation_std = np.std(observations, axis=0)
+action_std = np.std(actions, axis=0)
+
+observations_normalized = (observations - observation_mean) / observation_std
+actions_normalized = (actions - action_mean) / action_std
+next_observations_normalized = (next_observations - observation_mean) / observation_std
+
+deltas = next_observations_normalized - observations_normalized
+
+#learn f(normalized observation, normalized action) -> delta(normalized observation)
+inputs = torch.from_numpy(np.hstack((observations_normalized, actions_normalized))).float()
+labels = torch.from_numpy(deltas).float()
 train_data = TensorDataset(inputs, labels)
 print("size of dataset:", len(train_data))
 
 #define training parameters
-lr = 0.001
+lr = 0.0001
 n_epochs = 20
 batch_size = 20
 
@@ -73,4 +86,4 @@ for epoch in range(n_epochs):
 
         loss = train_step(x_batch, y_batch)
         losses.append(loss)
-    print("epoch", epoch, ": average loss =", loss)
+    print("epoch", epoch, ": average loss =", sum(losses) / len(losses))
