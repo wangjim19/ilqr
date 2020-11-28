@@ -69,7 +69,7 @@ model = Model(state_size, action_size).to(device)
 loss_fn = nn.MSELoss()
 optimizer = optim.SGD(model.parameters(), lr=lr)
 train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(dataset=test_data, batch_size=len(test_data), shuffle=False)
+test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=False)
 
 #train
 def train_step(x, y):
@@ -95,6 +95,7 @@ for epoch in range(n_epochs):
     print("EPOCH", epoch)
     print("average train loss =", sum(losses) / len(losses))
     with torch.no_grad():
+        test_losses = []
         for x_batch, y_batch in test_loader:
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
@@ -103,7 +104,9 @@ for epoch in range(n_epochs):
 
             y_hat = model(x_batch)
             test_loss = loss_fn(y_batch, y_hat).item()
-    print("test loss =", test_loss)
+            test_losses.append(test_loss)
+
+    print("test loss =", sum(test_losses) / len(test_losses))
     print('')
 
 torch.save(model.state_dict(), 'model-training/saved-models/cartpole/state-dict.pt')
