@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data.dataset import random_split
 
 if torch.cuda.is_available():
     print("Using CUDA")
@@ -49,21 +50,26 @@ next_observations_normalized = (next_observations - observation_mean) / observat
 
 deltas = next_observations_normalized - observations_normalized
 
-#learn f(normalized observation, normalized action) -> delta(normalized observation)
+#process data
 inputs = torch.from_numpy(np.hstack((observations_normalized, actions_normalized))).float()
 labels = torch.from_numpy(deltas).float()
-train_data = TensorDataset(inputs, labels)
-print("size of dataset:", len(train_data))
+dataset = TensorDataset(inputs, labels)
+train_size = (len(dataset) * 4) // 5
+test_size = len(dataset) - train_size
+train_data, test_data = random_split(dataset, [train_size, test_size])
+print("size of train data:", len(train_data))
+print("size of test data:", len(test_data))
 
 #define training parameters
 lr = 0.0001
-n_epochs = 20
+n_epochs = 100
 batch_size = 20
 
 model = Model(state_size, action_size).to(device)
 loss_fn = nn.MSELoss()
 optimizer = optim.SGD(model.parameters(), lr=lr)
 train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(dataset=test_data, batch_size=len(test_data), shuffle=False)
 
 #train
 def train_step(x, y):
@@ -86,4 +92,18 @@ for epoch in range(n_epochs):
 
         loss = train_step(x_batch, y_batch)
         losses.append(loss)
-    print("epoch", epoch, ": average loss =", sum(losses) / len(losses))
+    print("EPOCH", epoch)
+    print("average train loss =", sum(losses) / len(losses))
+    with torch.no_grad():
+        for x_batch, y_batch in test_loader:
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
+
+            model.eval()
+
+            y_hat = model(x_batch)
+            test_loss = loss_fn(y_batch, y_hat).item()
+    print("test loss =", test_loss)
+    print('')
+
+torch.save(model.state_dict(), 'model-training/saved-models/cartpole/state-dict.pt')
