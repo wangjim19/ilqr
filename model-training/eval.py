@@ -4,7 +4,6 @@ import numpy as np
 import gtimer as gt
 from tap import Tap
 import pdb
-import torch
 
 from ilqr.mujoco_dynamics import MujocoDynamics
 from ilqr.mujoco_controller import (
@@ -15,7 +14,6 @@ from ilqr.utils.config import load_config
 from ilqr.utils.rollouts import monitored_rollout
 from ilqr.utils.visualization import save_video
 from ilqr.utils.logging import verbose_iteration_callback
-
 
 class Parser(Tap):
     config_path: str = 'config.cartpole'
@@ -53,6 +51,8 @@ save_video(os.path.join(args.logdir, 'actual_rollout.mp4'), video_frames)
 
 
 ## run evaluation
+import torch
+
 class Model(nn.Module):
     def __init__(self, state_size, action_size):
         super(Model, self).__init__()
