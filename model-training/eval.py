@@ -84,6 +84,11 @@ action_mean = np.mean(actions, axis=0)
 observation_std = np.std(observations, axis=0)
 action_std = np.std(actions, axis=0)
 
+print("observation_mean", observation_mean)
+print("observation_std", observation_std)
+print("action_mean", action_mean)
+print("action_std", action_std)
+
 
 model = Model(state_size, action_size)
 model.load_state_dict(torch.load('model-training/saved-models/cartpole/state-dict.pt'))
@@ -98,9 +103,9 @@ x = x0
 for control in controls:
     normalized_state = (x - observation_mean) / observation_std
     normalized_action = (control - action_mean) / action_std
-    normalized_input = torch.from_numpy(np.concatenate(normalized_state, normalized_action)).float()
-    delta = model(normalized_input)
-    normalized_output = normalized_input + delta
+    normalized_input = torch.from_numpy(np.concatenate((normalized_state, normalized_action))).float()
+    delta = model(normalized_input).detach().numpy()
+    normalized_output = normalized_state + delta
     x = normalized_output * observation_std + observation_mean
 
     predicted_trajectory.append(x)
