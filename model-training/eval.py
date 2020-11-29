@@ -52,6 +52,7 @@ save_video(os.path.join(args.logdir, 'actual_rollout.mp4'), video_frames)
 
 ## run evaluation
 import torch
+import torch.nn as nn
 
 class Model(nn.Module):
     def __init__(self, state_size, action_size):
