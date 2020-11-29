@@ -1,6 +1,9 @@
+import time
 import os
 import numpy as np
+import gtimer as gt
 from tap import Tap
+import pdb
 import torch
 
 from ilqr.mujoco_dynamics import MujocoDynamics
