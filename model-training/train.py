@@ -61,7 +61,7 @@ print("size of train data:", len(train_data))
 print("size of test data:", len(test_data))
 
 #define training parameters
-lr = 0.0001
+lr = 0.001
 n_epochs = 100
 batch_size = 20
 
