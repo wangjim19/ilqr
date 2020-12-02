@@ -77,7 +77,7 @@ def train_step(x, y):
 
     optimizer.zero_grad()
     yhat = model(x)
-    loss = loss_fn(y, yhat)
+    loss = loss_fn(yhat, y)
     loss.backward()
     optimizer.step()
 
