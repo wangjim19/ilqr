@@ -38,7 +38,7 @@ with open('data-collection/data/cartpole/actions.txt', 'r') as f:
 with open('data-collection/data/cartpole/next_observations.txt', 'r') as f:
     next_observations = np.loadtxt(f).reshape(-1, state_size)
 
-observation_mean = np.mean(observations, axis=0)
+'''observation_mean = np.mean(observations, axis=0)
 action_mean = np.mean(actions, axis=0)
 
 observation_std = np.std(observations, axis=0)
@@ -48,10 +48,12 @@ observations_normalized = (observations - observation_mean) / observation_std
 actions_normalized = (actions - action_mean) / action_std
 next_observations_normalized = (next_observations - observation_mean) / observation_std
 
-deltas = next_observations_normalized - observations_normalized
+deltas = next_observations_normalized - observations_normalized'''
+deltas = next_observations - observations
 
 #process data
-inputs = torch.from_numpy(np.hstack((observations_normalized, actions_normalized))).float()
+#inputs = torch.from_numpy(np.hstack((observations_normalized, actions_normalized))).float()
+inputs = torch.from_numpy(np.hstack((observations, actions))).float()
 labels = torch.from_numpy(deltas).float()
 dataset = TensorDataset(inputs, labels)
 train_size = (len(dataset) * 4) // 5
@@ -67,7 +69,7 @@ batch_size = 20
 
 model = Model(state_size, action_size).to(device)
 loss_fn = nn.MSELoss()
-optimizer = optim.SGD(model.parameters(), lr=lr)
+optimizer = optim.Adam(model.parameters(), lr=lr)
 train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=False)
 
@@ -93,7 +95,7 @@ for epoch in range(n_epochs):
         loss = train_step(x_batch, y_batch)
         losses.append(loss)
     print("EPOCH", epoch)
-    print("average train loss =", sum(losses) / len(losses))
+    print("\naverage train loss =", sum(losses) / len(losses))
     with torch.no_grad():
         test_losses = []
         for x_batch, y_batch in test_loader:
@@ -107,6 +109,21 @@ for epoch in range(n_epochs):
             test_losses.append(test_loss)
 
     print("test loss =", sum(test_losses) / len(test_losses))
+    print('')
+    for _ in range(3):
+        i = np.random.choice(len(observations))
+        obs = observations[i]
+        ac = actions[i]
+        next_obs = next_observations[i]
+
+        print("obs:", obs, "ac:", ac)
+        print(next_obs, "LABEL")
+
+        model.eval()
+        delta = model(torch.from_numpy(np.concatenate((obs, ac))).float().to(device))
+        delta = delta.detach().numpy()
+        print(obs + delta, "PREDICTED")
+        print('')
     print('')
 
 torch.save(model.state_dict(), 'model-training/saved-models/cartpole/state-dict.pt')
