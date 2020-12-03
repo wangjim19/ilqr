@@ -71,7 +71,7 @@ class Model(nn.Module):
 state_size = 4
 action_size = 1
 
-with open('data-collection/data/cartpole/observations.txt', 'r') as f:
+'''with open('data-collection/data/cartpole/observations.txt', 'r') as f:
     observations = np.loadtxt(f).reshape(-1, state_size)
 with open('data-collection/data/cartpole/actions.txt', 'r') as f:
     actions = np.loadtxt(f).reshape(-1, action_size)
@@ -87,7 +87,7 @@ action_std = np.std(actions, axis=0)
 print("observation_mean", observation_mean)
 print("observation_std", observation_std)
 print("action_mean", action_mean)
-print("action_std", action_std)
+print("action_std", action_std)'''
 
 
 model = Model(state_size, action_size)
@@ -101,12 +101,12 @@ predicted_video_frames = [dynamics.render()]
 
 x = x0
 for control in controls:
-    normalized_state = (x - observation_mean) / observation_std
+    '''normalized_state = (x - observation_mean) / observation_std
     normalized_action = (control - action_mean) / action_std
-    normalized_input = torch.from_numpy(np.concatenate((normalized_state, normalized_action))).float()
-    delta = model(normalized_input).detach().numpy()
-    normalized_output = normalized_state + delta
-    x = normalized_output * observation_std + observation_mean
+    normalized_input = torch.from_numpy(np.concatenate((normalized_state, normalized_action))).float()'''
+    input = torch.from_numpy(np.concatenate((x, control))).float()
+    delta = model(input).detach().numpy()
+    x += delta
 
     predicted_trajectory.append(x)
     dynamics.set_state(x)

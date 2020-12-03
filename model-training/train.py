@@ -105,7 +105,7 @@ for epoch in range(n_epochs):
             model.eval()
 
             y_hat = model(x_batch)
-            test_loss = loss_fn(y_batch, y_hat).item()
+            test_loss = loss_fn(y_hat, y_batch).item()
             test_losses.append(test_loss)
 
     print("test loss =", sum(test_losses) / len(test_losses))
