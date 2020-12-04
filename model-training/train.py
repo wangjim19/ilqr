@@ -21,6 +21,8 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
+            nn.Linear(256, 256),
+	    nn.ReLU(),
             nn.Linear(256, state_size)
         )
 
@@ -63,9 +65,9 @@ print("size of train data:", len(train_data))
 print("size of test data:", len(test_data))
 
 #define training parameters
-lr = 0.001
+lr = 0.0001
 n_epochs = 100
-batch_size = 20
+batch_size = 40
 
 model = Model(state_size, action_size).to(device)
 loss_fn = nn.MSELoss()
@@ -114,15 +116,15 @@ for epoch in range(n_epochs):
         i = np.random.choice(len(observations))
         obs = observations[i]
         ac = actions[i]
-        next_obs = next_observations[i]
+        label = deltas[i]
 
         print("obs:", obs, "ac:", ac)
-        print(next_obs, "LABEL")
+        print(label, "LABEL")
 
         model.eval()
         delta = model(torch.from_numpy(np.concatenate((obs, ac))).float().to(device))
-        delta = delta.detach().numpy()
-        print(obs + delta, "PREDICTED")
+        delta = delta.detach().cpu().numpy()
+        print(delta, "PREDICTED")
         print('')
     print('')
 

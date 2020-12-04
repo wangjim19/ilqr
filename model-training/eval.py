@@ -108,7 +108,7 @@ for control in controls:
     delta = model(input).detach().numpy()
     x += delta
 
-    predicted_trajectory.append(x)
+    predicted_trajectory.append(x.copy())
     dynamics.set_state(x)
     predicted_video_frames.append(dynamics.render())
 
