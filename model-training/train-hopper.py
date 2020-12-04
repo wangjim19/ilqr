@@ -88,6 +88,8 @@ def train_step(x, y):
     return loss.item()
 
 
+test_loss_history = []
+train_loss_history = []
 for epoch in range(n_epochs):
     losses = []
     for i, (x_batch, y_batch) in enumerate(train_loader):
@@ -98,6 +100,7 @@ for epoch in range(n_epochs):
         losses.append(loss)
     print("EPOCH", epoch)
     print("\naverage train loss =", sum(losses) / len(losses))
+    train_loss_history.append(sum(losses)/len(losses))
     with torch.no_grad():
         test_losses = []
         for x_batch, y_batch in test_loader:
@@ -112,6 +115,7 @@ for epoch in range(n_epochs):
 
     print("test loss =", sum(test_losses) / len(test_losses))
     print('')
+    test_loss_history.append(sum(test_losses) / len(test_losses))
     for _ in range(3):
         i = np.random.choice(len(observations))
         obs = observations[i]
@@ -129,3 +133,8 @@ for epoch in range(n_epochs):
     print('')
 
 torch.save(model.state_dict(), 'model-training/saved-models/hopper/state-dict.pt')
+
+with open('model-training/saved-models/hopper/train_losses', 'w') as f:
+    np.savetxt(f, np.array(train_loss_history))
+with open('model-training/saved-models/hopper/test_losses', 'w') as f:
+    np.savetxt(f, np.array(test_loss_history))

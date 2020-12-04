@@ -62,6 +62,8 @@ class Model(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
+            nn.Linear(256, 256),
+	        nn.ReLU(),
             nn.Linear(256, state_size)
         )
 
