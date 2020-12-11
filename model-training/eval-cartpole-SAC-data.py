@@ -8,16 +8,16 @@ import gym
 
 from ilqr.utils.visualization import save_video
 
-state_size=12
-action_size=3
+state_size=4
+action_size=1
 
-with open('data-collection/data/hopper/observations.txt', 'r') as f:
+with open('data-collection/data/cartpole-SAC/observations.txt', 'r') as f:
     observations = np.loadtxt(f).reshape(-1, state_size)
-with open('data-collection/data/hopper/actions.txt', 'r') as f:
+with open('data-collection/data/cartpole-SAC/actions.txt', 'r') as f:
     actions = np.loadtxt(f).reshape(-1, action_size)
-with open('data-collection/data/hopper/next_observations.txt', 'r') as f:
+with open('data-collection/data/cartpole-SAC/next_observations.txt', 'r') as f:
     next_observations = np.loadtxt(f).reshape(-1, state_size)
-with open('data-collection/data/hopper/terminals.txt', 'r') as f:
+with open('data-collection/data/cartpole-SAC/terminals.txt', 'r') as f:
     terminals = np.loadtxt(f).reshape(-1)
 
 trajectories = []
@@ -36,18 +36,18 @@ for i, terminal in enumerate(terminals):
 
 for i,traj in enumerate(trajectories):
     print(i, len(traj))
-actual_trajectory = trajectories[3130]
-controls = action_sequences[3130]
+actual_trajectory = trajectories[0]
+controls = action_sequences[0]
 x0 = actual_trajectory[0]
 
 
 #make actual video
-env = gym.make('Hopper-v2')
+env = gym.make('Cartpole-v1')
 actual_video_frames = []
 for x in actual_trajectory:
-    env.set_state(x[:6], x[6:])
+    env.set_state(x[:state_size / 2], x[state_size / 2:])
     actual_video_frames.append(env.sim.render(512, 512))
-save_video(os.path.join('logs/hopper', 'actual_rollout.mp4'), actual_video_frames)
+save_video(os.path.join('logs/cartpole-SAC', 'actual_rollout.mp4'), actual_video_frames)
 
 ## run evaluation
 import torch
@@ -90,7 +90,7 @@ print("action_std", action_std)'''
 
 
 model = Model(state_size, action_size)
-model.load_state_dict(torch.load('model-training/saved-models/hopper/state-dict.pt'))
+model.load_state_dict(torch.load('model-training/saved-models/cartpole-SAC/state-dict.pt'))
 model.eval()
 
 
@@ -110,10 +110,10 @@ for control in controls:
     x += delta
 
     predicted_trajectory.append(x.copy())
-    env.set_state(x[:6], x[6:])
+    env.set_state(x[:state_size / 2], x[state_size / 2:])
     predicted_video_frames.append(env.sim.render(512, 512))
 
-save_video(os.path.join('logs/hopper', 'predicted_rollout.mp4'), predicted_video_frames)
+save_video(os.path.join('logs/cartpole-SAC', 'predicted_rollout.mp4'), predicted_video_frames)
 
 print("\n\npredicted trajectory:")
 print(predicted_trajectory)
