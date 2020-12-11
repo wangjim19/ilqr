@@ -94,7 +94,7 @@ model.load_state_dict(torch.load('model-training/saved-models/cartpole-SAC/state
 model.eval()
 
 
-env.set_state(x0[:6], x0[6:])
+env.set_state(x0[:state_size / 2], x0[state_size / 2:])
 
 
 predicted_trajectory = [x0.copy()]
