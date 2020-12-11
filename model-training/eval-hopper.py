@@ -8,6 +8,8 @@ import gym
 
 from ilqr.utils.visualization import save_video
 
+state_size=12
+action_size=3
 
 with open('data-collection/data/hopper/observations.txt', 'r') as f:
     observations = np.loadtxt(f).reshape(-1, state_size)
@@ -32,8 +34,10 @@ for i, terminal in enumerate(terminals):
         current_traj = []
         current_actions = []
 
-actual_trajectory = trajectories[0]
-controls = action_sequences[0]
+for i,traj in enumerate(trajectories):
+    print(i, len(traj))
+actual_trajectory = trajectories[405]
+controls = action_sequences[405]
 x0 = actual_trajectory[0]
 
 
@@ -65,8 +69,6 @@ class Model(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
-state_size = 12
-action_size = 3
 
 '''with open('data-collection/data/cartpole/observations.txt', 'r') as f:
     observations = np.loadtxt(f).reshape(-1, state_size)
@@ -98,7 +100,7 @@ env.set_state(x0[:6], x0[6:])
 predicted_trajectory = [x0.copy()]
 predicted_video_frames = [env.sim.render(512, 512)]
 
-x = x0
+x = x0.copy()
 for control in controls:
     '''normalized_state = (x - observation_mean) / observation_std
     normalized_action = (control - action_mean) / action_std
