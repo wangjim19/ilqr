@@ -39,7 +39,7 @@ gt.stamp('initialization')
 
 rollout_history = {}
 ## run ilqr
-while 'observations' not in rollout_history or rollout_history['observations'].shape[0] < 900000:
+while 'observations' not in rollout_history or rollout_history['observations'].shape[0] < 800000:
     us_init = np.random.uniform(*config.action_bounds, (args.horizon, dynamics.action_size))
     mpc_trajectory, controls = mpc.control(us_init,
         args.path_length,

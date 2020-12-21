@@ -65,8 +65,8 @@ print("size of train data:", len(train_data))
 print("size of test data:", len(test_data))
 
 #define training parameters
-lr = 0.0001
-n_epochs = 100
+lr = 0.00001
+n_epochs = 200
 batch_size = 40
 
 model = Model(state_size, action_size).to(device)

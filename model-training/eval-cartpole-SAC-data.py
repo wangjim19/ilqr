@@ -36,16 +36,16 @@ for i, terminal in enumerate(terminals):
 
 for i,traj in enumerate(trajectories):
     print(i, len(traj))
-actual_trajectory = trajectories[0]
-controls = action_sequences[0]
+actual_trajectory = trajectories[522]
+controls = action_sequences[522]
 x0 = actual_trajectory[0]
 
 
 #make actual video
-env = gym.make('Cartpole-v1')
+env = gym.make('InvertedPendulum-v2')
 actual_video_frames = []
 for x in actual_trajectory:
-    env.set_state(x[:state_size / 2], x[state_size / 2:])
+    env.set_state(x[:state_size // 2], x[state_size // 2:])
     actual_video_frames.append(env.sim.render(512, 512))
 save_video(os.path.join('logs/cartpole-SAC', 'actual_rollout.mp4'), actual_video_frames)
 
@@ -94,7 +94,7 @@ model.load_state_dict(torch.load('model-training/saved-models/cartpole-SAC/state
 model.eval()
 
 
-env.set_state(x0[:state_size / 2], x0[state_size / 2:])
+env.set_state(x0[:state_size // 2], x0[state_size // 2:])
 
 
 predicted_trajectory = [x0.copy()]
@@ -110,7 +110,7 @@ for control in controls:
     x += delta
 
     predicted_trajectory.append(x.copy())
-    env.set_state(x[:state_size / 2], x[state_size / 2:])
+    env.set_state(x[:state_size // 2], x[state_size // 2:])
     predicted_video_frames.append(env.sim.render(512, 512))
 
 save_video(os.path.join('logs/cartpole-SAC', 'predicted_rollout.mp4'), predicted_video_frames)
