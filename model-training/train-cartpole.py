@@ -133,7 +133,7 @@ for epoch in range(n_epochs):
 
 torch.save(model.state_dict(), 'model-training/saved-models/cartpole/state-dict.pt')
 
-with open('model-training/saved-models/cartpole/train_losses', 'w') as f:
+with open('model-training/saved-models/cartpole/train_losses.txt', 'w') as f:
     np.savetxt(f, np.array(train_loss_history))
-with open('model-training/saved-models/cartpole/test_losses', 'w') as f:
+with open('model-training/saved-models/cartpole/test_losses.txt', 'w') as f:
     np.savetxt(f, np.array(test_loss_history))

@@ -22,7 +22,7 @@ class Model(nn.Module):
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
-	    nn.ReLU(),
+	        nn.ReLU(),
             nn.Linear(256, state_size)
         )
 
@@ -30,15 +30,31 @@ class Model(nn.Module):
         return self.layers(x)
 
 #retrieve data
-state_size = 12
-action_size = 3
+state_size = 4
+action_size = 1
 
-with open('data-collection/data/hopper/observations.txt', 'r') as f:
+optimal_portion = 0.5
+
+with open('data-collection/data/cartpole/observations.txt', 'r') as f:
     observations = np.loadtxt(f).reshape(-1, state_size)
-with open('data-collection/data/hopper/actions.txt', 'r') as f:
+with open('data-collection/data/cartpole/actions.txt', 'r') as f:
     actions = np.loadtxt(f).reshape(-1, action_size)
-with open('data-collection/data/hopper/next_observations.txt', 'r') as f:
+with open('data-collection/data/cartpole/next_observations.txt', 'r') as f:
     next_observations = np.loadtxt(f).reshape(-1, state_size)
+
+with open('data-collection/data/cartpole-optimal/observations.txt', 'r') as f:
+    optimal_observations = np.loadtxt(f).reshape(-1, state_size)
+with open('data-collection/data/cartpole-optimal/actions.txt', 'r') as f:
+    optimal_actions = np.loadtxt(f).reshape(-1, action_size)
+with open('data-collection/data/cartpole-optimal/next_observations.txt', 'r') as f:
+    optimal_next_observations = np.loadtxt(f).reshape(-1, state_size)
+
+total_size = min(len(observations), len(optimal_observations))
+optimal_amount = int(total_size * optimal_portion)
+
+observations = np.concatenate(observations[:total_size - optimal_amount], optimal_observations[:optimal_amount])
+actions = np.concatenate(actions[:total_size - optimal_amount], optimal_actions[:optimal_amount])
+next_observations = np.concatenate(next_observations[:total_size - optimal_amount], optimal_next_observations[:optimal_amount])
 
 '''observation_mean = np.mean(observations, axis=0)
 action_mean = np.mean(actions, axis=0)
@@ -65,8 +81,8 @@ print("size of train data:", len(train_data))
 print("size of test data:", len(test_data))
 
 #define training parameters
-lr = 0.00001
-n_epochs = 200
+lr = 0.0001
+n_epochs = 100
 batch_size = 40
 
 model = Model(state_size, action_size).to(device)
@@ -86,7 +102,6 @@ def train_step(x, y):
     optimizer.step()
 
     return loss.item()
-
 
 test_loss_history = []
 train_loss_history = []
@@ -132,9 +147,9 @@ for epoch in range(n_epochs):
         print('')
     print('')
 
-torch.save(model.state_dict(), 'model-training/saved-models/hopper/state-dict.pt')
+torch.save(model.state_dict(), 'model-training/saved-models/cartpole-adjusted-distribution/state-dict.pt')
 
-with open('model-training/saved-models/hopper/train_losses.txt', 'w') as f:
+with open('model-training/saved-models/cartpole-adjusted-distribution/train_losses.txt', 'w') as f:
     np.savetxt(f, np.array(train_loss_history))
-with open('model-training/saved-models/hopper/test_losses.txt', 'w') as f:
+with open('model-training/saved-models/cartpole-adjusted-distribution/test_losses.txt', 'w') as f:
     np.savetxt(f, np.array(test_loss_history))
