@@ -52,9 +52,9 @@ with open('data-collection/data/cartpole-optimal/next_observations.txt', 'r') as
 total_size = min(len(observations), len(optimal_observations))
 optimal_amount = int(total_size * optimal_portion)
 
-observations = np.concatenate(observations[:total_size - optimal_amount], optimal_observations[:optimal_amount])
-actions = np.concatenate(actions[:total_size - optimal_amount], optimal_actions[:optimal_amount])
-next_observations = np.concatenate(next_observations[:total_size - optimal_amount], optimal_next_observations[:optimal_amount])
+observations = np.concatenate((observations[:total_size - optimal_amount], optimal_observations[:optimal_amount]))
+actions = np.concatenate((actions[:total_size - optimal_amount], optimal_actions[:optimal_amount]))
+next_observations = np.concatenate((next_observations[:total_size - optimal_amount], optimal_next_observations[:optimal_amount]))
 
 '''observation_mean = np.mean(observations, axis=0)
 action_mean = np.mean(actions, axis=0)
