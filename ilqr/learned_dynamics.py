@@ -9,7 +9,8 @@ class LearnedDynamics:
     def __init__(self,
                  model,
                  state_size,
-                 action_size):
+                 action_size,
+                 use_vmap = False):
         """
 
         Args:
@@ -21,6 +22,7 @@ class LearnedDynamics:
         self._state_size = self.state_size
         self._action_size = self.action_size
         self._state = np.zeros(self.state_size)
+        self._use_vmap = use_vmap
 
     @property
     def state_size(self):
@@ -78,11 +80,16 @@ class LearnedDynamics:
         input = np.hstack((xs[:us.shape[0]], us))
         input = torch.from_numpy(input).float().requires_grad_(True)
         deltas = self._model(input)
-        for i in range(us.shape[0]):
-            for j in range(xs.shape[1]):
-                print(i < (us.shape[0] - 1) or j < (xs.shape[1] - 1))
-                F[:, j, :] += torch.autograd.grad(deltas[i][j], input, retain_graph=i < (us.shape[0] - 1) or j < (xs.shape[1] - 1))[0]
-            F[i, :, :xs.shape[1]] += torch.eye(xs.shape[1]) # add ds/ds to d(s' - s)/ds to get d(s')/ds
+        if self._use_vmap:
+            jacobian = torch.vmap(lambda y: torch.autograd.grad(y, input), out_dims = 1)
+            for i in range(us.shape[0]):
+                F += jacobian(deltas[i])
+                F[i, :, :xs.shape[1]] += torch.eye(xs.shape[1])
+        else:
+            for i in range(us.shape[0]):
+                for j in range(xs.shape[1]):
+                    F[:, j, :] += torch.autograd.grad(deltas[i][j], input, retain_graph=True)[0]
+                F[i, :, :xs.shape[1]] += torch.eye(xs.shape[1]) # add ds/ds to d(s' - s)/ds to get d(s')/ds
         F_x = F[:, :, :xs.shape[1]].detach().numpy()
         F_u = F[:, :, xs.shape[1]:].detach().numpy()
         return (F_x, F_u)
