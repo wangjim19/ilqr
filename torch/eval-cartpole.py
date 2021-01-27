@@ -93,7 +93,7 @@ print("action_std", action_std)'''
 
 
 model = Model(state_size, action_size)
-model.load_state_dict(torch.load('model-training/saved-models/cartpole/state-dict.pt'))
+model.load_state_dict(torch.load('torch/saved-models/cartpole/state-dict.pt'))
 model.eval()
 
 dynamics.set_state(x0)

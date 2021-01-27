@@ -132,9 +132,9 @@ for epoch in range(n_epochs):
         print('')
     print('')
 
-torch.save(model.state_dict(), 'model-training/saved-models/hopper/state-dict.pt')
+torch.save(model.state_dict(), 'torch/saved-models/hopper/state-dict.pt')
 
-with open('model-training/saved-models/hopper/train_losses.txt', 'w') as f:
+with open('torch/saved-models/hopper/train_losses.txt', 'w') as f:
     np.savetxt(f, np.array(train_loss_history))
-with open('model-training/saved-models/hopper/test_losses.txt', 'w') as f:
+with open('torch/saved-models/hopper/test_losses.txt', 'w') as f:
     np.savetxt(f, np.array(test_loss_history))

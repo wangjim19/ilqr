@@ -3,6 +3,7 @@ import haiku as hk
 import jax.numpy as jnp
 import numpy as np
 from torch.utils.data import DataLoader
+import jax.experimental.optimizers as optimizers
 
 state_size = 4
 action_size = 1
@@ -35,32 +36,64 @@ def get_inputs_labels(data_batch):
     label_batch = data_batch[:, state_size + action_size:].numpy()
     return input_batch.astype(jnp.float32), label_batch.astype(jnp.float32)
 
-
-def mse(yhat, y):
-    return jnp.mean(jnp.square(y - yhat))
-
-def loss_fn(inputs, labels):
+def model_fn(inputs):
     mlp = hk.Sequential([
         hk.Linear(256), jax.nn.relu,
         hk.Linear(256), jax.nn.relu,
         hk.Linear(state_size),
     ])
-    yhat = mlp(inputs)
-    return mse(yhat, labels)
+    return mlp(inputs)
 
-loss_fn_t = hk.without_apply_rng(hk.transform(loss_fn))
+model = hk.without_apply_rng(hk.transform(model_fn))
+
+def loss_fn(params, inputs, labels):
+    predictions = model.apply(params, inputs)
+    loss = jnp.mean(jnp.square(labels - predictions))
+    return loss
+
+@jax.jit
+def update(step, opt_state, inputs, labels):
+    loss, grads = jax.value_and_grad(loss_fn)(get_params(opt_state), inputs, labels)
+    opt_state = opt_update(step, grads, opt_state)
+    return loss, opt_state
+
+
 
 rng = jax.random.PRNGKey(0)
 
 x, y = get_inputs_labels(next(iter(train_loader)))
+print(x.shape, y.shape)
 print('initializing params')
-params = loss_fn_t.init(rng, x, y)
+params = model.init(rng, x)
 
-def sgd(param, update):
-    return param - lr * update
+print('initializing optimizer')
+opt_init, opt_update, get_params = optimizers.adam(lr)
+opt_state = opt_init(params)
+
+
 print('starting training')
+
+test_loss_history = []
+train_loss_history = []
+i=0
+
 for e in range(n_epochs):
+    losses = []
     for data_batch in train_loader:
         x, y = get_inputs_labels(data_batch)
-        grads = jax.grad(loss_fn_t.apply)(params, x, y)
-        params = jax.tree_multimap(sgd, params, grads)
+        loss, opt_state = update(i, opt_state, x, y)
+        i += 1
+        losses.append(loss)
+    print("EPOCH", epoch)
+    print("\naverage train loss =", sum(losses) / len(losses))
+    train_loss_history.append(sum(losses)/len(losses))
+
+    #EVALUATION
+    test_losses = []
+    for data_batch in test_loader:
+        x, y = get_inputs_labels(data_batch)
+        loss = loss_fn(get_params(opt_state), x, y)
+        test_losses.append(loss)
+    print("test loss =", sum(test_losses) / len(test_losses))
+    print('')
+    test_loss_history.append(sum(test_losses) / len(test_losses))
