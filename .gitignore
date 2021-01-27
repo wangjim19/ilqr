@@ -107,4 +107,5 @@ ENV/
 .DS_Store
 logs/
 data-collection/data/
-model-training/saved-models/
+jax/saved-models/
+torch/saved-models/
