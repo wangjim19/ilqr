@@ -98,7 +98,7 @@ for epoch in range(n_epochs):
         loss = train_step(x_batch, y_batch)
         losses.append(loss)
     print("EPOCH", epoch)
-    print("\naverage train loss =", sum(losses) / len(losses))
+    print("average train loss =", sum(losses) / len(losses))
     train_loss_history.append(sum(losses)/len(losses))
     with torch.no_grad():
         test_losses = []

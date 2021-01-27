@@ -10,9 +10,7 @@ import time
 state_size = 4
 action_size = 1
 
-lr = 0.0001
 batch_size = 40
-n_epochs = 100
 
 with open('data-collection/data/cartpole/observations.txt', 'r') as f:
     observations = np.loadtxt(f).reshape(-1, state_size)
@@ -55,58 +53,15 @@ def loss_fn(params, inputs, labels):
     loss = jnp.mean(jnp.square(labels - predictions))
     return loss
 
-@jax.jit
-def update(step, opt_state, inputs, labels):
-    loss, grads = jax.value_and_grad(loss_fn)(get_params(opt_state), inputs, labels)
-    opt_state = opt_update(step, grads, opt_state)
-    return loss, opt_state
+
+print('loading params')
+params = pickle.load(open("jax/saved-models/cartpole/params.pkl", "rb"))
 
 
-
-rng = jax.random.PRNGKey(0)
-
-x, y = get_inputs_labels(next(iter(train_loader)))
-print('initializing params')
-params = model.init(rng, x)
-
-print('initializing optimizer')
-opt_init, opt_update, get_params = optimizers.adam(lr)
-opt_state = opt_init(params)
-
-
-print('starting training\n')
-
-test_loss_history = []
-train_loss_history = []
-i=0
-
-t0 = time.time()
-for e in range(n_epochs):
-    losses = []
-    for data_batch in train_loader:
-        x, y = get_inputs_labels(data_batch)
-        loss, opt_state = update(i, opt_state, x, y)
-        i += 1
-        losses.append(loss)
-    print("EPOCH", e)
-    print("average train loss =", sum(losses) / len(losses))
-    train_loss_history.append(sum(losses)/len(losses))
-
-    #EVALUATION
-    test_losses = []
-    for data_batch in test_loader:
-        x, y = get_inputs_labels(data_batch)
-        loss = loss_fn(get_params(opt_state), x, y)
-        test_losses.append(loss)
-    print("test loss =", sum(test_losses) / len(test_losses))
-    print('')
-    test_loss_history.append(sum(test_losses) / len(test_losses))
-print("Time:", time.time() - t0)
-
-
-pickle.dump(get_params(opt_state), open("jax/saved-models/cartpole/params.pkl", "wb"))
-
-with open('jax/saved-models/cartpole/train_losses.txt', 'w') as f:
-    np.savetxt(f, np.array(train_loss_history))
-with open('jax/saved-models/cartpole/test_losses.txt', 'w') as f:
-    np.savetxt(f, np.array(test_loss_history))
+print('starting evaluation\n')
+test_losses = []
+for data_batch in test_loader:
+    x, y = get_inputs_labels(data_batch)
+    loss = loss_fn(params, x, y)
+    test_losses.append(loss)
+print("test loss =", sum(test_losses) / len(test_losses))
