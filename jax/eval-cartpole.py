@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 from torch.utils.data import DataLoader
 import jax.experimental.optimizers as optimizers
+from jax import jit, vmap, jacfwd
 import pickle
 import time
 
@@ -47,7 +48,7 @@ def model_fn(inputs):
 
 model = hk.without_apply_rng(hk.transform(model_fn))
 
-@jax.jit
+@jit
 def loss_fn(params, inputs, labels):
     predictions = model.apply(params, inputs)
     loss = jnp.mean(jnp.square(labels - predictions))

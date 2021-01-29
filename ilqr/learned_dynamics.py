@@ -17,7 +17,7 @@ class LearnedDynamics:
             model: torch model (input: concatenated state+action, output: state delta).
         """
 
-        self._model = load_model_from_path(model_xml_path)
+        self._model = model
         self._model.eval()
         self._state_size = self.state_size
         self._action_size = self.action_size
