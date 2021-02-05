@@ -22,7 +22,7 @@ trial_length = data['actions'].shape[-2]
 observations = data['observations'][:, :-1, :].reshape((-1, state_size))
 next_observations = data['observations'][:, 1:, :].reshape((-1, state_size))
 actions = data['actions'].reshape((-1, action_size))
-rewards = data['actions'].reshape((-1, 1))
+rewards = data['rewards'].reshape((-1, 1))
 terminals = np.array([0 if i % trial_length != trial_length - 1 else 1 for i in range(observations.shape[0])])
 
 with open(savedir + 'observations.txt', 'w') as f:
