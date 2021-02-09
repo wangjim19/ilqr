@@ -19,9 +19,9 @@ class LearnedDynamics:
 
         self._model = model
         self._model.eval()
-        self._state_size = self.state_size
-        self._action_size = self.action_size
-        self._state = np.zeros(self.state_size)
+        self._state_size = state_size
+        self._action_size = action_size
+        self._state = np.zeros(state_size)
         self._use_vmap = use_vmap
 
     @property
