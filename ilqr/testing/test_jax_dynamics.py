@@ -43,7 +43,8 @@ print('x0:', xs[0])
 
 print('Testing step:')
 t0 = time.time()
-print(dynamics.step(us[0]))
+print('predicted:', dynamics.step(us[0]))
+print('actual:', xs[1])
 print('initial time:', time.time() - t0)
 t0 = time.time()
 for i in range(10):

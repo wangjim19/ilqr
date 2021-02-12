@@ -63,7 +63,7 @@ class JaxEnsembleDynamics:
         Args:
             state: numpy state vector
         """
-        self._state[:] = state
+        self._state = state.copy()
 
     def get_state(self):
         """Gets state of simulator
