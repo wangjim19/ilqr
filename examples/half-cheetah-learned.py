@@ -7,7 +7,7 @@ import pdb
 import pickle
 
 from ilqr.jax_dynamics import JaxEnsembleDynamics
-from ilqr.mujoco_controller import (
+from ilqr.learned_controller import (
     iLQR,
     RecedingHorizonController,
 )
@@ -36,7 +36,7 @@ print('x0:', x0)
 
 np.random.seed(125)
 us_init = np.random.uniform(-1,1, (args.horizon, dynamics.action_size))
-ilqr = iLQR(dynamics, config.cost_fn, args.horizon, multiprocessing = False)
+ilqr = iLQR(dynamics, config.cost_fn, args.horizon)
 mpc = RecedingHorizonController(x0, ilqr)
 gt.stamp('initialization')
 

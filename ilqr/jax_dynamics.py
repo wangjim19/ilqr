@@ -90,6 +90,23 @@ class JaxEnsembleDynamics:
             self._state += deltas[np.random.randint(self.ensemble_size)]
         return self.get_state()
 
+    def f(self, x_batch, u_batch):
+        """Predicts next states given states and actions.
+
+        Args:
+            xs: [batch_size, state_size]
+            us: [batch_size, action_size]
+        Returns:
+            [batch_size, state_size]
+        """
+        inputs = np.tile(np.hstack((x_batch, u_batch)), (self.ensemble_size, 1, 1))
+        deltas = self._model(self._params, inputs)
+        if self.aggregation_mode == 'average':
+            predictions = x_batch + np.mean(deltas, axis=0)
+        elif self.aggregation_mode == 'random':
+            predictions = x_batch + deltas[np.random.randint(self.ensemble_size)]
+        return predictions
+
     def f_derivs(self, xs, us):
         """Computes dynamics derivatives.
 
