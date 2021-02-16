@@ -107,7 +107,7 @@ ENV/
 .DS_Store
 logs/
 data-collection/data/
-jax/saved-models/
+jax_models/saved-models/
 torch/saved-models/
 pets/sampled_rollout.pkl
 

@@ -7,6 +7,7 @@ import jax.experimental.optimizers as optimizers
 import pickle
 import time
 import math
+from jax_models.layers.ensemble_linear import EnsembleLinear
 
 state_size = 18
 action_size = 6
@@ -18,16 +19,14 @@ rollout = pickle.load(open("pets/sampled_rollout.pkl", "rb"))
 #input shape = (ensemble_size, batch_size, state_size+action_size)
 #output shape = (ensemble_size, batch_size, state_size)
 def model_fn(inputs):
-    mlps = []
-    for i in range(ensemble_size):
-        mlps.append(hk.Sequential([
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(state_size),
-        ]))
-    return jnp.stack([mlps[i](inputs[i]) for i in range(ensemble_size)])
+    mlp = hk.Sequential([
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, state_size),
+    ])
+    return mlp(inputs)
 
 model = hk.without_apply_rng(hk.transform(model_fn))
 

@@ -46,16 +46,14 @@ def exact_cost_fn():
     return cost
 
 def model_fn(inputs):
-    mlps = []
-    for i in range(ensemble_size):
-        mlps.append(hk.Sequential([
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(200), jax.nn.swish,
-            hk.Linear(state_size),
-        ]))
-    return jnp.stack([mlps[i](inputs[i]) for i in range(ensemble_size)])
+    mlp = hk.Sequential([
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, 200), jax.nn.swish,
+        EnsembleLinear(ensemble_size, state_size),
+    ])
+    return mlp(inputs)
 
 class Config:
     params = pickle.load(open('jax/saved-models/halfcheetah-ensemble/params.pkl', 'rb'))
