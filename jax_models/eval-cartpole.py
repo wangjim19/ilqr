@@ -56,7 +56,7 @@ def loss_fn(params, inputs, labels):
 
 
 print('loading params')
-params = pickle.load(open("jax/saved-models/cartpole/params.pkl", "rb"))
+params = pickle.load(open("jax_models/saved-models/cartpole/params.pkl", "rb"))
 
 
 print('starting evaluation\n')

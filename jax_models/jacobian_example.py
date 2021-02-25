@@ -50,7 +50,7 @@ model = hk.without_apply_rng(hk.transform(model_fn))
 
 
 print('loading params')
-params = pickle.load(open("jax/saved-models/cartpole/params.pkl", "rb"))
+params = pickle.load(open("jax_models/saved-models/cartpole/params.pkl", "rb"))
 
 #Jacobian example
 f = lambda inputs: jnp.add(model.apply(params, inputs), inputs[:state_size]) #add inputs because model predicts deltas

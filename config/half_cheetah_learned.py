@@ -5,6 +5,7 @@ import pickle
 import haiku as hk
 import jax.numpy as jnp
 import jax
+from jax_models.layers.ensemble_linear import EnsembleLinear
 
 ensemble_size = 5
 state_size = 18
@@ -56,7 +57,7 @@ def model_fn(inputs):
     return mlp(inputs)
 
 class Config:
-    params = pickle.load(open('jax/saved-models/halfcheetah-ensemble/params.pkl', 'rb'))
+    params = pickle.load(open('jax_models/saved-models/halfcheetah-ensemble/params.pkl', 'rb'))
     ensemble_size = ensemble_size
     state_size = state_size
     action_size = action_size

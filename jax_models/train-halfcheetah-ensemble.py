@@ -139,9 +139,9 @@ for e in range(n_epochs):
     test_loss_history.append(np.mean(test_losseses, axis=0))
 print("Time:", time.time() - t0)
 
-pickle.dump(get_params(opt_state), open("jax/saved-models/halfcheetah-ensemble/params.pkl", "wb"))
+pickle.dump(get_params(opt_state), open("jax_models/saved-models/halfcheetah-ensemble/params.pkl", "wb"))
 
-with open('jax/saved-models/halfcheetah-ensemble/train_losses.txt', 'w') as f:
+with open('jax_models/saved-models/halfcheetah-ensemble/train_losses.txt', 'w') as f:
     np.savetxt(f, np.array(train_loss_history))
-with open('jax/saved-models/halfcheetah-ensemble/test_losses.txt', 'w') as f:
+with open('jax_models/saved-models/halfcheetah-ensemble/test_losses.txt', 'w') as f:
     np.savetxt(f, np.array(test_loss_history))

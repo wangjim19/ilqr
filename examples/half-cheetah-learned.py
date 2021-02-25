@@ -16,6 +16,8 @@ from ilqr.utils.rollouts import monitored_rollout
 from ilqr.utils.visualization import save_video
 from ilqr.utils.logging import verbose_iteration_callback, cost_only_callback
 
+from envs.half_cheetah import HalfCheetahEnv
+
 
 class Parser(Tap):
     config_path: str = 'config.half_cheetah_learned'
@@ -37,12 +39,12 @@ print('x0:', x0)
 np.random.seed(125)
 us_init = np.random.uniform(-1,1, (args.horizon, dynamics.action_size))
 ilqr = iLQR(dynamics, config.cost_fn, args.horizon)
-mpc = RecedingHorizonController(x0, ilqr)
+mpc = RecedingHorizonController(ilqr, HalfCheetahEnv(), x0)
 gt.stamp('initialization')
 
 ## run ilqr
 time0 = time.time()
-mpc_trajectory, controls = mpc.control(us_init,
+mpc_trajectory, controls, video_frames, predicted_trajs, planned_actions = mpc.control(us_init,
     args.path_length,
     step_size=2,
     initial_n_iterations=args.mpc_initial_itrs,
@@ -52,17 +54,18 @@ print("total time:", time.time() - time0)
 gt.stamp('control')
 
 pickle.dump(mpc_trajectory, open(args.logdir + '/mpc_trajectory.pkl', 'wb'))
-pickle.dump(mpc_trajectory, open(args.logdir + '/controls.pkl', 'wb'))
+pickle.dump(controls, open(args.logdir + '/controls.pkl', 'wb'))
+pickle.dump(predicted_trajs, open(args.logdir + '/predicted_trajs.pkl', 'wb'))
+pickle.dump(planned_actions, open(args.logdir + '/planned_actions.pkl', 'wb'))
 
 ## save rollout video to disk
-"""video_trajectory, video_frames = monitored_rollout(dynamics, x0, controls)
 save_video(os.path.join(args.logdir, 'rollout.mp4'), video_frames)
-gt.stamp('video logging')"""
+gt.stamp('video logging')
 
 ## print time information
 print(gt.report())
 
 ## trajectory from rolling out resulting control sequence
 ## should match the trajectory given by the mpc solver
-assert (mpc_trajectory == video_trajectory).all()
-pdb.set_trace()
+#assert (mpc_trajectory == video_trajectory).all()
+#pdb.set_trace()

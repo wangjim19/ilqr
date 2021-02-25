@@ -2,6 +2,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 from typing import Any, Callable, Iterable, Optional, Type
+import numpy as np
 
 class EnsembleLinear(hk.Module):
   """Linear module."""

@@ -105,9 +105,9 @@ for e in range(n_epochs):
 print("Time:", time.time() - t0)
 
 
-pickle.dump(get_params(opt_state), open("jax/saved-models/halfcheetah-pets/params.pkl", "wb"))
+pickle.dump(get_params(opt_state), open("jax_models/saved-models/halfcheetah-pets/params.pkl", "wb"))
 
-with open('jax/saved-models/halfcheetah-pets/train_losses.txt', 'w') as f:
+with open('jax_models/saved-models/halfcheetah-pets/train_losses.txt', 'w') as f:
     np.savetxt(f, np.array(train_loss_history))
-with open('jax/saved-models/halfcheetah-pets/test_losses.txt', 'w') as f:
+with open('jax_models/saved-models/halfcheetah-pets/test_losses.txt', 'w') as f:
     np.savetxt(f, np.array(test_loss_history))

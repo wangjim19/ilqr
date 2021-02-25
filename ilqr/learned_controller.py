@@ -205,8 +205,8 @@ class iLQR(BaseController):
 
         Returns:
             Tuple of
-                xs: state path [N+1, state_size].
-                us: control path [N, action_size].
+                xs: state paths [len(alphas), N+1, state_size].
+                us: control paths [len(alphas), N, action_size].
         """
         xs_new = np.zeros(alphas.shape + xs.shape)
         us_new = np.zeros(alphas.shape + us.shape)
@@ -409,27 +409,27 @@ class RecedingHorizonController(object):
 
     """Receding horizon controller for Model Predictive Control."""
 
-    def __init__(self, x0, controller):
+    def __init__(self, controller, env, x0 = None):
         """Constructs a RecedingHorizonController.
 
         Args:
             x0: Initial state [state_size].
             controller: Controller to fit with.
         """
-        self._x = x0
         self._controller = controller
         self._random = np.random.RandomState()
+        self.env = env
+        if x0 is None:
+            self._x = self.env.reset()
+        else:
+            self.env.set_state(
+                np.concatenate([[0], x0[1:self.env.model.nq]]),
+                x0[self.env.model.nq:]
+            )
+            self._x = self.env._get_obs()
 
     def seed(self, seed):
         self._random.seed(seed)
-
-    def set_state(self, x):
-        """Sets the current state of the controller.
-
-        Args:
-            x: Current state [state_size].
-        """
-        self._x = x
 
     def control(self,
                 us_init,
@@ -476,16 +476,23 @@ class RecedingHorizonController(object):
 
         trajectory = [self._x.copy()]
         controls = []
+        video_frames = [self.render()]
+        predicted_trajs = []
+        planned_actions = []
 
         for i in range(path_length):
         # for i in gt.timed_for(range(path_length)):
-
             xs, us = self._controller.fit(self._x,
                                           us_init,
                                           n_iterations=n_iterations,
                                           *args,
                                           **kwargs)
-            self._x = xs[step_size]
+            predicted_trajs.append(xs.copy())
+            planned_actions.append(us.copy())
+            for i in range(step_size):
+                ob, reward, done, info = self.env.step(us[i])
+                self._x = ob
+            video_frames.append(self.render())
             # yield xs[:step_size + 1], us[:step_size], us
 
             # Set up next action path seed by simply moving along the current
@@ -498,4 +505,9 @@ class RecedingHorizonController(object):
             trajectory.append(self._x.copy())
             controls.append(us[:step_size])
 
-        return np.stack(trajectory, axis=0), np.concatenate(controls, axis=0)
+        return np.stack(trajectory, axis=0), np.concatenate(controls, axis=0), video_frames, np.stack(predicted_trajs), np.stack(planned_actions)
+
+    def render(self, dim=512):
+        ## rendered img is upside-down by default
+        img = self.env.sim.render(dim, dim)
+        return img[::-1]

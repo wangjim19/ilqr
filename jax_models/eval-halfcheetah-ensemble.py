@@ -31,7 +31,7 @@ def model_fn(inputs):
 model = hk.without_apply_rng(hk.transform(model_fn))
 
 print('initializing params')
-params = pickle.load(open("jax/saved-models/halfcheetah-ensemble/params.pkl", "rb"))
+params = pickle.load(open("jax_models/saved-models/halfcheetah-ensemble/params.pkl", "rb"))
 
 print('starting evaluation')
 actual_traj = rollout["actual_trajectory"]
@@ -56,4 +56,4 @@ rollout_dict = {
     "predicted_trajectories": predicted_trajs,
 }
 
-pickle.dump(rollout_dict, open("jax/saved-models/halfcheetah-ensemble/sampled_rollout.pkl", "wb"))
+pickle.dump(rollout_dict, open("jax_models/saved-models/halfcheetah-ensemble/sampled_rollout.pkl", "wb"))
