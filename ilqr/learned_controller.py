@@ -142,6 +142,7 @@ class iLQR(BaseController):
 
                 # Backtracking line search.
                 xs_new_all, us_new_all = self._control(xs, us, k, K, alphas)
+                gt.stamp('fit/bls1', unique=False)
 
                 for i, alpha in enumerate(alphas):
                     xs_new, us_new = xs_new_all[i], us_new_all[i]
@@ -165,7 +166,7 @@ class iLQR(BaseController):
                         # Accept this.
                         accepted = True
                         break
-                gt.stamp('fit/bls', unique=False)
+                gt.stamp('fit/bls2', unique=False)
             except np.linalg.LinAlgError as e:
                 # Quu was not positive-definite and this diverged.
                 # Try again with a higher regularization term.
