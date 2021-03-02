@@ -137,6 +137,8 @@ for e in range(n_epochs):
     print("test loss per bootstrap =", np.mean(test_losseses, axis=0))
     print('')
     test_loss_history.append(np.mean(test_losseses, axis=0))
+    if e > 50 and np.mean(test_loss_history[-1]) >= np.mean(test_loss_history[-50]):
+        break
 print("Time:", time.time() - t0)
 
 pickle.dump(get_params(opt_state), open("jax_models/saved-models/halfcheetah-ensemble/params.pkl", "wb"))
