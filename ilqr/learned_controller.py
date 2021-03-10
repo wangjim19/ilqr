@@ -22,6 +22,7 @@ import gtimer as gt
 import pdb
 import os
 from ilqr.mujoco_dynamics import MujocoDynamics
+import jax.numpy as jnp
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseController():
@@ -167,10 +168,10 @@ class iLQR(BaseController):
                         accepted = True
                         break
                 gt.stamp('fit/bls2', unique=False)
-            except np.linalg.LinAlgError as e:
+            except:
                 # Quu was not positive-definite and this diverged.
                 # Try again with a higher regularization term.
-                warnings.warn(str(e))
+                warnings.warn('error')
 
             if not accepted:
                 # Increase regularization term.
@@ -340,8 +341,8 @@ class iLQR(BaseController):
                                                  L_uu[i], V_x, V_xx)
 
             # Eq (6).
-            k[i] = -np.linalg.solve(Q_uu, Q_u)
-            K[i] = -np.linalg.solve(Q_uu, Q_ux)
+            k[i] = -jnp.linalg.solve(Q_uu, Q_u)
+            K[i] = -jnp.linalg.solve(Q_uu, Q_ux)
 
             # Eq (11b).
             V_x = Q_x + K[i].T.dot(Q_uu).dot(k[i])
