@@ -1,5 +1,6 @@
 from ilqr.costs.finite_diff import FiniteDiffCost
 from ilqr.costs.exact import ExactCost
+from ilqr.costs.jax_cost import JaxCost
 import numpy as np
 import pickle
 import haiku as hk
@@ -46,6 +47,21 @@ def exact_cost_fn():
     cost = ExactCost(l_exact, l_x, l_u, l_xx, l_ux, l_uu, use_multiprocessing = True)
     return cost
 
+
+def cost_func(x, u):
+    action_cost = jnp.square(u).sum()
+    vel_cost = 10 * (x[9] - 4) ** 2
+    steady_cost = 200 * (x[10] ** 2)
+    return action_cost + vel_cost + steady_cost
+def terminal_cost_func(x):
+    vel_cost = 10 * (x[9] - 4) ** 2
+    steady_cost = 200 * (x[10] ** 2)
+    return vel_cost + steady_cost
+def jax_cost_fn():
+    cost = JaxCost(cost_func, terminal_cost_func)
+    return cost
+
+
 def model_fn(inputs):
     mlp = hk.Sequential([
         EnsembleLinear(ensemble_size, 200), jax.nn.swish,
@@ -62,5 +78,5 @@ class Config:
     state_size = state_size
     action_size = action_size
     action_bounds = None
-    cost_fn = exact_cost_fn()
+    cost_fn = jax_cost_fn()
     model_fn = model_fn
